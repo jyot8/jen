@@ -1,0 +1,56 @@
+
+
+CREATE COMPUTE MODULE SF_HTTP_Input_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		DECLARE soapNs  NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';	
+		DECLARE refBody REFERENCE TO InputRoot.XMLNS.soapNs:Envelope.soapNs:Body;	
+
+		DECLARE MessageId 	BLOB;
+		DECLARE CHAR_ID 	CHAR;
+		DECLARE CHAR_ID_Pad CHAR;
+		DECLARE MQSourceQueue CHAR;
+		DECLARE Pad_String 	CHAR;
+		DECLARE dRandom		DECIMAL;
+		DECLARE sRandom		CHAR;		
+		
+		-- Save the HTTP environment so that we can REPLY
+		--
+		-- Note that in IIB this probably isn't needed as it will save context within an execution group
+
+		MOVE refBody TO InputRoot.SOAP.Body;
+		IF LASTMOVE(refBody) THEN		
+			SET Environment.EAIframework.Context.InputType = 'SOAP';
+			SET OutputRoot.XMLNS.*[1] = refBody.*[1];
+			SET Environment.IntegrationType = InputRoot.SOAP.Context.operation;
+			
+			-- Build a new message id 
+			SET CHAR_ID = CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyyMMddHHmmssSSSSSS');
+			SET dRandom = CAST(1000000 * (RAND() + 1) AS DECIMAL FORMAT '#######.##');
+			SET sRandom = SUBSTRING(CAST(dRandom AS CHAR) FROM 1 FOR 7) || 'xxxxxxxxxxxxxxxxx'; 
+			SET CHAR_ID_Pad = CHAR_ID || SUBSTRING(sRandom FROM 1 FOR (24 - LENGTH(CHAR_ID)));		
+			SET MessageId = CAST(CHAR_ID_Pad AS BLOB CCSID 850);		
+			
+			SET Environment.InputMessageId = MessageId;
+		ELSE
+			MOVE refBody TO InputRoot.XMLNS.soapNs:Envelope.soapNs:Body;
+			IF LASTMOVE(refBody) THEN	
+				SET Environment.EAIframework.Context.InputType = 'httpSOAP';
+				SET OutputRoot.XMLNS.*[1] = refBody.*[1];
+				SET Environment.IntegrationType = FIELDNAME(refBody.[>]);
+			ELSE
+				SET Environment.EAIframework.Context.InputType = 'HTTP';
+				SET OutputRoot = InputRoot;
+			END IF;
+			
+			SET Environment.InputMessageId = InputLocalEnvironment.Destination.HTTP.RequestIdentifier;
+			
+		END IF;
+		
+		SET Environment.EAIframework.Context.OriginalRoot = InputRoot;
+
+		RETURN TRUE;
+	END;
+
+END MODULE;

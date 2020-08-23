@@ -1,0 +1,307 @@
+CREATE COMPUTE MODULE SERVICEFLOW_STATS_Compute_Insert_statistics_to_WBI_tables
+CREATE FUNCTION main() RETURNS BOOLEAN BEGIN
+-- Enter SQL below this line.  SQL above this line might be regenerated, causing any modifications to be lost.
+-- Enter SQL below this line.  SQL above this line might be regenerated, causing any modifications to be lost.
+SET OutputRoot = InputRoot;
+-- Enter SQL below this line.  SQL above this line might be regenerated, causing any modifications to be lost.
+DECLARE pBody REFERENCE TO "InputBody"."WMQIStatisticsAccounting";
+DECLARE pFlow REFERENCE TO "InputBody"."WMQIStatisticsAccounting".MessageFlow ;
+DECLARE pNode REFERENCE TO "InputBody"."WMQIStatisticsAccounting".Nodes.NodeStatistics[1];
+DECLARE pThread REFERENCE TO "InputBody"."WMQIStatisticsAccounting".Threads.ThreadStatistics[1];
+DECLARE pTerm REFERENCE TO "InputBody"."WMQIStatisticsAccounting".Nodes.NodeStatistics[1].TerminalStatistics[1];
+DECLARE iTerminal integer;
+Declare SumCT_in_uS integer;
+Declare Duration Decimal;
+Declare sDate char;
+Declare sTime char;
+Declare sAccountingOrigin char;
+
+
+-- If start date is 0000-01-01 then we have a deploy type message - the start date and time are
+-- in error
+If ('0000-01-01' = pFlow.StartDate )
+then
+   set sDate = pFlow.EndDate ;
+   set sTime = pFlow.EndTime;
+   Set Duration = 9999;
+
+else
+   set sDate = pFlow.StartDate ;
+   set sTime = pFlow.StartTime;
+
+   Set Duration = 2400*3600 * cast( (CAST (pFlow.EndDate as DATE)
+                              - CAST (pFlow.StartDate as DATE)) DAY as integer)
+
+                        +cast( (CAST (pFlow.EndTime as TIME)
+                          - CAST(pFlow.StartTime as TIME)) second as integer);
+
+end if;  -- problem with redeploy
+Set SumCT_in_uS = cast (pFlow.TotalCPUTime as INT) + cast (pFlow.CPUTimeWaitingForInputMessage as Integer);
+
+if (FIELDNAME(pFlow.AccountingOrigin) IS NULL) then set sAccountingOrigin = 'Anonymous';
+else set sAccountingOrigin = Substring(pFlow.AccountingOrigin from 1 for 36);
+end if;
+
+
+ 
+
+
+INSERT INTO  Database.EAI.FLOWSTATS
+(
+  RecordType
+, RecordCode
+, Broker
+, BrokerUUID
+, ExecGroup
+, EGroupUUID
+, Flow
+, StartDate
+, StartTime
+, EndDate
+, EndTime
+, Duration
+, TotET_in_uS
+, MaxET_in_uS
+, MinET_in_uS
+, TotCT_in_uS
+, MaxCT_in_uS
+, MinCT_in_uS
+, WaitET_in_S  -- in seconds otherwise sql overflow
+, WaitCT_in_uS
+, SumCT_in_uS
+, Messages
+, TotMsgsize
+, MaxMsgSize
+, MinMsgSize
+, NumThread
+, AtMaxthread
+, NumMQErr
+, NumMSGErr
+, NumErr
+, NumAGGTO
+, NumCommits
+, NumBackout
+,accountingOrigin 
+
+)
+VALUES( pBody.RecordType
+,       pBody.RecordCode
+,       Substring(pFlow.BrokerLabel from 1 for 36)
+,       pFlow.BrokerUUID
+,       Substring(pFlow.ExecutionGroupName  from 1 for 36)
+,       pFlow.ExecutionGroupUUID
+,       Substring(pFlow.MessageFlowName      from 1 for 36)
+, cast( sDate            as DATE)
+, cast( sTime            as TIME)
+, cast( pFlow.EndDate as DATE)
+, cast( pFlow.EndTime as TIME)
+, Duration
+, cast( pFlow.TotalElapsedTime as INT)
+, cast( pFlow.MaximumElapsedTime as INT)
+, cast( pFlow.MinimumElapsedTime as INT)
+, cast( pFlow.TotalCPUTime as INT)
+, cast( pFlow.MaximumCPUTime as INT)
+, cast( pFlow.MinimumCPUTime as INT)
+, cast( pFlow.ElapsedTimeWaitingForInputMessage as INT)/1000000 -- in seconds otherwise sql overflow
+, cast( pFlow.CPUTimeWaitingForInputMessage as INT)
+, SumCT_in_uS
+, cast( pFlow.TotalInputMessages as INT)
+, cast( pFlow.TotalSizeOfInputMessages as INT)
+, cast( pFlow.MaximumSizeOfInputMessages   as integer)
+, cast( pFlow.MinimumSizeOfInputMessages   as integer)
+, cast( pFlow.NumberOfThreadsInPool        as integer)
+, cast( pFlow.TimesMaximumNumberOfThreadsReached as integer)
+, cast( pFlow.TotalNumberOfMQErrors        as integer)
+, cast( pFlow.TotalNumberOfMessagesWithErrors as integer)
+, cast( pFlow.TotalNumberOfErrorsProcessingMessages as integer)
+, cast( pFlow.TotalNumberOfTimeOutsWaitingForRepliesToAggregateMessages         as integer)
+, cast( pFlow.TotalNumberOfCommits as integer)
+, cast( pFlow.TotalNumberOfBackouts as integer)
+, sAccountingOrigin
+
+);
+
+
+WHILE LASTMOVE(pNode) = TRUE
+DO
+  INSERT INTO  Database.EAI.NODESTATS
+ (
+        RecordType
+  ,     RecordCode
+    ,     Broker
+ ,      BrokerUUID
+ ,      ExecGroup
+ ,      EGroupUUID
+ ,      Flow
+ ,      StartDate
+ ,      StartTime
+ ,      EndDate
+ ,      EndTime
+ ,      Duration
+ ,      Node
+ ,      NodeType
+ ,      TotET_in_uS
+ ,      MaxET_in_uS
+ ,      MinET_in_uS
+ ,      TotCT_in_uS
+ ,      MaxCT_in_uS
+ ,      MinCT_in_uS
+ ,      TimesUsed
+ ,      NInputT
+ ,      NOutputT
+)
+VALUES( pBody.RecordType
+  ,     pBody.RecordCode
+  ,       Substring(pFlow.BrokerLabel from 1 for 36)
+,       pFlow.BrokerUUID
+,       Substring(pFlow.ExecutionGroupName  from 1 for 36)
+,       pFlow.ExecutionGroupUUID
+,       Substring(pFlow.MessageFlowName      from 1 for 36)
+, cast( sDate            as DATE)
+, cast( sTime            as TIME)
+  , cast(       pFlow.EndDate as DATE)
+  , cast(       pFlow.EndTime as TIME)
+  , Duration
+  ,     Substring( pNode.Label  from 1 for 36)
+  ,     Substring( pNode.Type  from 1 for 36)
+  ,     cast(pNode.TotalElapsedTime     as      integer)
+  ,     cast(pNode.MaximumElapsedTime   as      integer)
+  ,     cast(pNode.MinimumElapsedTime   as      integer)
+  ,     cast(pNode.TotalCPUTime as      integer)
+  ,     cast(pNode.MaximumCPUTime       as      integer)
+  ,     cast(pNode.MinimumCPUTime       as      integer)
+  ,     cast(pNode.CountOfInvocations   as      integer)
+  ,     cast(pNode.NumberOfInputTerminals       as      integer)
+  ,     cast(pNode.NumberOfOutputTerminals      as      integer)
+
+  );
+
+
+
+--
+-- now do the thread statistics ( if any)
+--
+Set iTerminal = 1;
+While (iTerminal < Cardinality(pNode.TerminalStatistics[]))
+-- Set pTerm = pNode.TerminalStatistics[1];
+-- WHILE LASTMOVE(pTerm) = TRUE
+DO
+--  SET pTerm = pNode.TerminalStatistics[iTerminal];
+  INSERT INTO  Database.EAI.TERMSTATS
+ (
+        RecordType
+  ,     RecordCode
+   ,     Broker
+ ,      BrokerUUID
+ ,      ExecGroup
+ ,      EGroupUUID
+ ,      Flow
+ ,      StartDate
+ ,      StartTime
+ ,      EndDate
+ ,      EndTime
+ ,      Duration
+ ,      Node
+ ,      NodeType
+ ,      TermLabel
+ ,      TermType
+ ,      TimesUsed
+
+)
+VALUES( pBody.RecordType
+  ,     pBody.RecordCode
+  ,       Substring(pFlow.BrokerLabel from 1 for 36)
+,       pFlow.BrokerUUID
+,       Substring(pFlow.ExecutionGroupName  from 1 for 36)
+,       pFlow.ExecutionGroupUUID
+,       Substring(pFlow.MessageFlowName      from 1 for 36)
+, cast( sDate            as DATE)
+, cast( sTime            as TIME)
+, cast(       pFlow.EndDate as DATE)
+, cast(       pFlow.EndTime as TIME)
+, Duration
+,  Substring( pNode.Label  from 1 for 36)
+  ,     Substring( pNode.Type  from 1 for 36)
+,     Substring(pNode.TerminalStatistics[iTerminal].Label from 1 for 36)
+,     Substring(pNode.TerminalStatistics[iTerminal].Type from 1 for 36)
+,     cast(pNode.TerminalStatistics[iTerminal].CountOfInvocations as integer)
+
+);
+
+ --  MOVE pTerm NEXTSIBLING;
+Set iTerminal = iTerminal + 1;
+END WHILE;
+
+ MOVE pNode NEXTSIBLING;
+
+END WHILE;
+
+--  Now the thread stats
+Declare sThreads integer;
+Set sThreads = CARDINALITY("InputBody"."WMQIStatisticsAccounting".Threads.ThreadStatistics[]);
+Declare  I integer;
+Set I = 0;
+WHILE LASTMOVE(pThread) = TRUE
+DO
+  Set I = I + 1;
+  Set SumCT_in_uS =  cast( pThread.TotalCPUTime as integer)  + cast( pThread.CPUTimeWaitingForInputMessage as integer);
+
+  INSERT INTO  Database.EAI.ThreadSTATS
+ (
+  RecordType
+, RecordCode
+, Broker
+, BrokerUUID
+, ExecGroup
+, EGroupUUID
+, Flow
+, StartDate
+, StartTime
+, EndDate
+, EndTime
+, Duration
+, Messages
+, Threads
+, Thread
+, MsgET_in_uS
+, MsgCT_in_uS
+, WaitET_in_S -- in seconds otherwise sql overflow
+, WaitCT_in_uS
+, SumCT_in_uS
+, TotalBytes
+, MaxMsgSize
+, MinMsgSize     )
+VALUES( pBody.RecordType
+  ,     pBody.RecordCode
+,       Substring(pFlow.BrokerLabel from 1 for 36)
+,       pFlow.BrokerUUID
+,       Substring(pFlow.ExecutionGroupName  from 1 for 36)
+,       pFlow.ExecutionGroupUUID
+,       Substring(pFlow.MessageFlowName      from 1 for 36)
+,  cast( sDate            as DATE)
+,  cast( sTime            as TIME)
+  , cast(       pFlow.EndDate as DATE)
+  , cast(       pFlow.EndTime as TIME)
+  , Duration
+  , cast(       pThread.TotalNumberOfInputMessages as integer)
+  , sThreads  -- how many theads in total
+  , I         -- our thread number
+
+  , cast(       pThread.TotalElapsedTime as integer)
+  , cast(       pThread.TotalCPUTime as integer)
+  , cast(       pThread.ElapsedTimeWaitingForInputMessage as integer)/1000000 -- in seconds otherwise sql overflow
+  , cast(       pThread.CPUTimeWaitingForInputMessage as integer)
+  , SumCT_in_uS
+  , cast(       pThread.TotalSizeOfInputMessages as integer)
+  , cast(       pThread.MaximumSizeOfInputMessages as integer)
+  , cast(       pThread.MinimumSizeOfInputMessages as integer)
+  );
+
+
+   MOVE pThread NEXTSIBLING;
+END WHILE;
+
+RETURN true;
+END;
+
+END MODULE;

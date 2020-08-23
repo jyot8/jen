@@ -1,0 +1,11 @@
+
+
+CREATE FILTER MODULE SF_MQ_Output_FTE_Output
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- FTE output set by indicating "FTE:" at start of queue name 
+		
+		RETURN ( LEFT(LocalEnvironment.Destination.MQ[1].DestinationData[1].queueName,4) = 'FTE:' );
+	END;
+
+END MODULE;

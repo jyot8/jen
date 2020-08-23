@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmMQInput.msgnode="ComIbmMQInput.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" xmi:id="EPackage_1" nsURI="SERVICEFLOW_STATS.msgflow" nsPrefix="SERVICEFLOW_STATS.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" xmi:id="FCMComposite_1" name="FCMComposite_1">
+    <eAnnotations>
+      <details key="xmi:uuid" value="e9809b0e-f900-0000-0080-e5e3f020b464"/>
+    </eAnnotations>
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" xmi:id="TranslatableString_1" key="SERVICEFLOW_STATS" bundleName="SERVICEFLOW_STATS" pluginId="FrameworkV8-Services"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" xmi:id="GIFFileGraphic_1" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj16/SERVICEFLOW_STATS.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" xmi:id="GIFFileGraphic_2" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj30/SERVICEFLOW_STATS.gif"/>
+    <composition xmi:id="Composition_1">
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="540,215" dataSource="EAI" computeExpression="esql://routine/#SERVICEFLOW_STATS_Compute_Insert_statistics_to_WBI_tables.Main">
+        <translation xmi:type="utility:ConstantString" string="Insert statistics to tables"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="357,215" queueName="EAI.STATS">
+        <translation xmi:type="utility:ConstantString" string="EAI.STATS"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer xmi:id="PropertyOrganizer_1"/>
+  </eClassifiers>
+</ecore:EPackage>

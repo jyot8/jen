@@ -1,0 +1,26 @@
+
+
+CREATE COMPUTE MODULE SF_MQ_Output_Set_specific_info
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		-- Populate LocalEnvironment.Destination.FTE to override the settings of teh FTE Output node
+		SET OutputLocalEnvironment.Destination.FTE.DestinationAgent = 
+			SUBSTRING(InputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName FROM 5);
+		SET OutputLocalEnvironment.Destination.FTE.DestinationQmgr =
+			InputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueManagerName;
+--		SET LocalEnvironment.Destination.FTE.JobName
+
+--		FTE.Directory and File  are set already in the output proagation loop along with the queue name
+		
+		CALL CopyEntireMessage();
+		
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

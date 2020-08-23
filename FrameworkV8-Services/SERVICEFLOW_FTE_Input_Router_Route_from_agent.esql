@@ -1,0 +1,22 @@
+
+
+CREATE COMPUTE MODULE SERVICEFLOW_FTE_Input_Router_Route_from_agent
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		CALL CopyEntireMessage();
+		
+		-- Use the sening FTE agent name from the input as the key for routing 
+		SET Environment.IntegrationType = InputLocalEnvironment.FTE.Transfer.SourceAgent;
+		
+		-- The file name may also be important to routing : InputLocalEnvironment.FTE.Transfer.Name
+		
+		
+		
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

@@ -1,0 +1,18 @@
+
+
+CREATE COMPUTE MODULE SF_SOAP_HTTP_Reply_Timeout
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE outRefError REFERENCE TO InputRoot;
+		
+		SET OutputRoot = InputRoot;
+		DECLARE finNs  NAMESPACE 'http://ws.integration.finnair.com/Results';	
+		DECLARE finRrNs  NAMESPACE 'http://ws.integration.finnair.com/Error';	
+		
+		CREATE FIELD OutputRoot.XMLNS.finNs:Results.finRrNs:Error AS outRefError;
+		
+		SET outRefError.(XML.Attribute)code = 9901;
+		SET outRefError.(XML.Attribute)freeText = 'The service request timed out within the Finnair environment';
+		
+	END;
+END MODULE;

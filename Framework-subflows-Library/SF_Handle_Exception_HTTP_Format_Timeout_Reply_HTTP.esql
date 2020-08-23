@@ -1,0 +1,85 @@
+-- DO NOT MODIFY----
+-- Version history--- 
+--$MQSI $Log: SF_Handle_Exception_HTTP_Format_Timeout_Reply_HTTP.esql,v $
+--$MQSI Revision 1.1  2015/02/19 12:43:34  panu.hyrylainen
+--$MQSI HTTP exception esql
+--$MQSI
+--Version history end---
+
+CREATE COMPUTE MODULE SF_Handle_Exception_HTTP_Format_Timeout_Reply_HTTP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+	
+--------------------------------------------------------------------------------------------
+-------------------------------- DO NOT MODIFY ---------------------------------------------
+DECLARE SF_Handle_Exception_HTTP_Format_Timeout_Reply_HTTP_esql CHARACTER '$MQSI SF_Handle_Exception_HTTP_Format_Timeout_Reply_HTTP_esql = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_Handle_Exception_HTTP_Format_Timeout_Reply_HTTP.esql,v 1.1 2015/02/19 12:43:34 panu.hyrylainen Exp $ MQSI$';
+------------IT WILL UPDATED WHEN COMMIT/CHECK IN TO THE CVS---------------------------------		
+		
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage();
+		
+		DECLARE Terminal CHAR;
+		DECLARE InProps REFERENCE To InputProperties;
+		
+		DECLARE MessageFlowName CHAR;
+			SET MessageFlowName = SQL.MessageFlowLabel;
+			SET MessageFlowName = SUBSTRING(UPPER(MessageFlowName) FROM 1 FOR 48);
+				
+		-- Create timeout message to the timeout queue (SYS_TIMEOUT) 
+
+			-- Build up an 'MQ' message			
+			SET OutputRoot.Properties = InProps;
+  			SET OutputRoot.Properties.ContentType VALUE = NULL;
+			CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD' NAME 'MQMD';
+		
+			SET OutputRoot.MQMD.Format = MQFMT_STRING;   
+			SET OutputRoot.MQMD.PutDate = CURRENT_DATE;
+		
+			SET OutputRoot.XMLNSC.Timeout.HTTPInputHeader = InputRoot.HTTPInputHeader;
+			SET OutputRoot.XMLNSC.Timeout.OriginalInboundMessage.(XMLNSC.CDataField)Message = CAST(InputLocalEnvironment.HTTP.Input.Timeout.OriginalInboundMessage AS CHAR CCSID 1208);
+		
+		
+		PROPAGATE TO TERMINAL 1;
+		
+		
+		-- build timeout soap fault message
+		DECLARE OriginalClientWaitTime CHAR;  -- Input node timeout
+		SET OriginalClientWaitTime = CAST(InputLocalEnvironment.HTTP.Input.Timeout.OriginalClientWaitTime AS CHAR);
+		
+		DECLARE soapenv NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';
+		SET OutputRoot.SOAP.Context.Namespace.(SOAP.NamespaceDecl)xmlns:soapenv = soapenv;
+		 
+
+		Create FIRSTCHILD of OutputRoot.XMLNSC TYPE XMLNSC.XmlDeclaration NAME 'XmlDeclaration';
+		Set OutputRoot.XMLNSC.(XMLNSC.XmlDeclaration)*.(XMLNSC.Attribute)Version = '1.0'; 
+		Set OutputRoot.XMLNSC.(XMLNSC.XmlDeclaration)*.(XMLNSC.Attribute)Encoding = 'UTF-8';-- Defect 44590
+		
+				SET OutputRoot.SOAP.Body.soapenv:Fault.faultcode = 'Server' ;
+        SET OutputRoot.SOAP.Body.soapenv:Fault.faultstring = 'A timeout occurred during processing';
+        --SET OutputRoot.SOAP.Body.soapenv:Fault.faultactor = InputRoot.HTTPInputHeader.X-Original-HTTP-Command;
+        SET OutputRoot.SOAP.Body.soapenv:Fault.detail.Text = 'Timeout. A response was not available within specified time interval (' || OriginalClientWaitTime || ' second) . Please, try again. If the timeout persists, please contact service provider.'; 
+		
+		Set OutputLocalEnvironment.Destination.HTTP.ReplyStatusCode = '500'; -- HTTP header Status code - Internal Server Error
+	
+       	SET Terminal = 'out';  -- propagate fault message to the "out" terminal
+		PROPAGATE TO TERMINAL Terminal;
+		
+		
+		RETURN FALSE;
+	END;
+		
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

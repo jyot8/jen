@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmFlowOrder.msgnode="ComIbmFlowOrder.msgnode" xmlns:ComIbmMQGet.msgnode="ComIbmMQGet.msgnode" xmlns:ComIbmMQInput.msgnode="ComIbmMQInput.msgnode" xmlns:ComIbmMQOutput.msgnode="ComIbmMQOutput.msgnode" xmlns:ComIbmThrow.msgnode="ComIbmThrow.msgnode" xmlns:ComIbmTrace.msgnode="ComIbmTrace.msgnode" xmlns:SF_Build_LogTimeStamp.subflow="SF_Build_LogTimeStamp.subflow" xmlns:SF_Load_Environment_Variables.subflow="SF_Load_Environment_Variables.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SERVICEFLOW_ERR_Read_Failure.msgflow" nsPrefix="SERVICEFLOW_ERR_Read_Failure.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.filePath" name="filePath" defaultValueLiteral="/brokerv8/logs/exception_handling_detail.log">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.filePath1" name="filePath1" defaultValueLiteral="/brokerv8/logs/exception_handling.log">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.filePath2" name="filePath2" defaultValueLiteral="/brokerv8/logs/exception_handling.log">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.filePath3" name="filePath3" defaultValueLiteral="/brokerv8/logs/exception_handling.log">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="SERVICEFLOW_ERR_Read_Failure" bundleName="SERVICEFLOW_ERR_Read_Failure" pluginId="FrameworkV8-Services"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj16/SERVICEFLOW_ERR_Read_Failure.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj30/SERVICEFLOW_ERR_Read_Failure.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="This internal service is used to monitor the system failure queue looking for message failures"/>
+    <longDescription xmi:type="utility:ConstantString" string=" It matches failures to the component status queue and update the component status database table."/>
+    <version xmi:type="utility:ConstantString" string="V00.01"/>
+    <composition>
+      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="255,-6" rotation="TOP_TO_BOTTOM" queueName="SYS_FAILURE_PREPROCESSED" messageDomainProperty="BLOB">
+        <translation xmi:type="utility:ConstantString" string="SYS_FAILURE_PREPROCESSED"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_8" location="89,37" rotation="TOP_TO_BOTTOM" queueName="SYS_HARD_FAILURE">
+        <translation xmi:type="utility:ConstantString" string="SYS_HARD_FAILURE"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_10" location="111,469" rotation="TOP_TO_BOTTOM" dataSource="EAI" computeExpression="ERR_Process_Failure_Message_Store_Message_And_Exception" treatWarningsAsErrors="true" throwExceptionOnDatabaseError="false">
+        <translation xmi:type="utility:ConstantString" string="Store_Message_And_Exception"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_14" location="320,476" rotation="TOP_TO_BOTTOM" dataSource="EAI" computeExpression="ERR_Process_Failure_Message_Store_Message" treatWarningsAsErrors="true" throwExceptionOnDatabaseError="false">
+        <translation xmi:type="utility:ConstantString" string="Store_Message"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_17" location="289,561" rotation="TOP_TO_BOTTOM" destination="file" filePath="/var/log/exception_handling.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo ESB ExceptionHandling WARN  EAI:Unmatched exception in exception processing flow ERR_Process_Failure_Message. Message will be stored in MESSAGE_EXCEPTION but will not be replayable Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}">
+        <translation xmi:type="utility:ConstantString" string="excep_handling_WARN.log"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_15" location="107,561" rotation="TOP_TO_BOTTOM" destination="file" filePath="/var/log/exception_handling.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo ESB ExceptionHandling WARN  EAI:A failure message has been received and processed by the flow ERR_Process_Failure_Message. Message will be stored in MESSAGE_EXCEPTION for normal replay Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_WARN2.log"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="524,37" rotation="TOP_TO_BOTTOM" destination="file" filePath="/var/log/exception_handling.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo ESB ExceptionHandling ERROR  EAI:Failure to process exception message in flow ERR_Process_Failure_Message. Message will be placed on SYS_HARD_FAILURE queue. Further details in /var/mqsi/log/exception_handling_detail.log Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_ERROR.log"/>
+      </nodes>
+      <nodes xmi:type="ComIbmThrow.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_16" location="683,281" rotation="TOP_TO_BOTTOM" messageText="SYS_HARD_FAILURE ERR_Process_Failure_Message">
+        <translation xmi:type="utility:ConstantString" string="Throw"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_18" location="528,130" rotation="TOP_TO_BOTTOM" destination="file" filePath="/var/log/exception_handling_detail.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo ESB ExceptionHandling ERROR  EAI:Failure to process exception message in flow ERR_Process_Failure_Message. Message will be place on SYS_HARD_FAILURE queue. Further details in /var/mqsi/log/exception_handling_detail.log Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}&#xD;&#xA; ############ Exception follows&#xD;&#xA;${ExceptionList}&#xD;&#xA; ############# Message data follows ########&#xD;&#xA;${Root}&#xD;&#xA; ## End ###">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_detail.log"/>
+      </nodes>
+      <nodes xmi:type="SF_Build_LogTimeStamp.subflow:FCMComposite_1" xmi:id="FCMComposite_1_19" location="268,66" rotation="TOP_TO_BOTTOM">
+        <translation xmi:type="utility:ConstantString" string="SF_Build_LogTimeStamp"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQGet.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_20" location="243,306" rotation="TOP_TO_BOTTOM" queueName="SYS_EXCEPTION" messageDomainProperty="XMLNS" copyMessage="copyEntireMessage" waitInterval="500" getWithCorrelID="true" outputDataLocation="Environment.MQGetResult">
+        <translation xmi:type="utility:ConstantString" string="MQGet_SYS_EXCEPTION (CorrelId)"/>
+      </nodes>
+      <nodes xmi:type="SF_Load_Environment_Variables.subflow:FCMComposite_1" xmi:id="FCMComposite_1_21" location="249,149" rotation="TOP_TO_BOTTOM">
+        <translation xmi:type="utility:ConstantString" string="SF_Load_Environment_Variables"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="287,226" rotation="TOP_TO_BOTTOM" dataSource="EAI" computeExpression="esql://routine/#ERR_Process_Failure_Message_Store_and_set_IDs.Main" treatWarningsAsErrors="true" throwExceptionOnDatabaseError="false">
+        <translation xmi:type="utility:ConstantString" string="Store_and_set_IDs"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQGet.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_9" location="259,389" rotation="TOP_TO_BOTTOM" queueName="SYS_EXCEPTION" messageDomainProperty="XMLNS" copyMessage="copyEntireMessage" waitInterval="50" getWithMessageID="true" outputDataLocation="Environment.MQGetResult">
+        <translation xmi:type="utility:ConstantString" string="MQGet_SYS_EXCEPTION (MsglId)"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="549,615" rotation="TOP_TO_BOTTOM" computeExpression="esql://routine/#SERVICEFLOW_Process_Failure_Message_Create_Alert_Message.Main">
+        <translation xmi:type="utility:ConstantString" string="Create_Alert_Message"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="472,696" rotation="TOP_TO_BOTTOM" queueName="SYS_TIVOLI_ALERT" transactionMode="no" newMsgId="true">
+        <translation xmi:type="utility:ConstantString" string="MQ Output (non-transactional): SYS_TIVOLI_ALERT"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFlowOrder.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_5" location="577,227" rotation="TOP_TO_BOTTOM">
+        <translation xmi:type="utility:ConstantString" string="Flow Order"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_15" sourceNode="FCMComposite_1_10" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_18" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_17" sourceNode="FCMComposite_1_14" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_19" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_21" sourceNode="FCMComposite_1_19" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_8" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_21" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_9" targetNode="FCMComposite_1_20" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_10" targetNode="FCMComposite_1_9" sourceNode="FCMComposite_1_20" sourceTerminalName="OutTerminal.noMessage" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_11" targetNode="FCMComposite_1_14" sourceNode="FCMComposite_1_9" sourceTerminalName="OutTerminal.noMessage" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_12" targetNode="FCMComposite_1_10" sourceNode="FCMComposite_1_9" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in">
+        <bendPoints>-155,19,-1,-63</bendPoints>
+      </connections>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_13" targetNode="FCMComposite_1_10" sourceNode="FCMComposite_1_20" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in">
+        <bendPoints>-144,20,0,-146</bendPoints>
+      </connections>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_14" targetNode="FCMComposite_1_5" sourceNode="FCMComposite_1_18" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_15" targetNode="FCMComposite_1_16" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.second" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_16" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.first" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_17" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_18" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_15" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_19" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_17" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.DetailLogBasic" configurable="true" describedAttribute="Property.filePath">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.filePath" bundleName="ComIbmTrace" pluginId="com.ibm.etools.mft.ibmnodes"/>
+        <propertyDescriptor groupName="Group.ERRORLogBasic" configurable="true" describedAttribute="Property.filePath1">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.filePath1" bundleName="ERR_Process_Failure_Message" pluginId="Exception_Management3"/>
+          <propertyDescriptor groupName="Group.WARNBasic" configurable="true" describedAttribute="Property.filePath2">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.filePath2" bundleName="ERR_Process_Failure_Message" pluginId="Exception_Management3"/>
+            <propertyDescriptor groupName="Group.WARN2Basic" configurable="true" describedAttribute="Property.filePath3">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.filePath3" bundleName="ERR_Process_Failure_Message" pluginId="Exception_Management3"/>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.filePath" overriddenNodes="FCMComposite_1_18">
+      <overriddenAttribute href="ComIbmTrace.msgnode#Property.filePath"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.filePath1" overriddenNodes="FCMComposite_1_7">
+      <overriddenAttribute href="ComIbmTrace.msgnode#Property.filePath"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.filePath2" overriddenNodes="FCMComposite_1_17">
+      <overriddenAttribute href="ComIbmTrace.msgnode#Property.filePath"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.filePath3" overriddenNodes="FCMComposite_1_15">
+      <overriddenAttribute href="ComIbmTrace.msgnode#Property.filePath"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

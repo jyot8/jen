@@ -1,0 +1,69 @@
+
+
+CREATE COMPUTE MODULE SF_JText_Instance_Input_Add_JText_Attributes
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		-- Create an XML wrappered message that is in the same format the JText adapter would have created,
+		-- for compatibility with older file processing mappings
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+
+		Declare outRef Reference to OutputLocalEnvironment; -- moved later to output message
+		Declare inRef  Reference To InputLocalEnvironment;
+		DECLARE Terminal 	CHAR;
+		DECLARE MessageID 	CHAR;
+		DECLARE CHAR_ID 	CHAR;
+		DECLARE CHAR_ID_Pad CHAR;
+		DECLARE MQSourceQueue CHAR;
+		DECLARE Pad_String 	CHAR;
+		DECLARE InProps REFERENCE To InputProperties;
+		DECLARE inMessage REFERENCE To InputRoot;	
+		DECLARE MessageId 	BLOB;
+		DECLARE dRandom		DECIMAL;
+		DECLARE sRandom		CHAR;	
+		DECLARE ImageString	CHARACTER;	
+		
+		-- Build a new message id 
+		SET CHAR_ID = CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyyMMddHHmmssSSS');
+		SET dRandom = CAST(1000000 * (RAND() + 1) AS DECIMAL FORMAT '#######.##');
+		SET sRandom = SUBSTRING(CAST(dRandom AS CHAR) FROM 1 FOR 7) || 'xxxxxxxxxxxxxxxxx'; 
+		SET CHAR_ID_Pad = CHAR_ID || SUBSTRING(sRandom FROM 1 FOR (24 - LENGTH(CHAR_ID)));		
+		SET MessageId = CAST(CHAR_ID_Pad AS BLOB CCSID 850);		
+		SET MQSourceQueue = 'FILE_INPUT';
+		
+		-- Build up an 'MQ' message			
+		SET OutputRoot.Properties = InProps;
+   	 	SET OutputRoot.Properties.ReplyProtocol = 'MQ';
+		SET OutputRoot.Properties.ContentType VALUE = NULL;
+		CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD' NAME 'MQMD';
+
+		SET OutputRoot.MQMD.MsgId 			= MessageId;
+		SET OutputRoot.MQMD.SourceQueue 	= MQSourceQueue;
+		Set OutputRoot.MQMD.CorrelId   		= MessageId;
+		Set OutputRoot.MQMD.Format 			= MQFMT_STRING;
+		Set OutputRoot.MQMD.Encoding 		= 273;
+		Set OutputRoot.MQMD.CodedCharSetId 	= 1208;
+		Set OutputRoot.MQMD.Expiry   		= -1;
+		Set OutputRoot.MQMD.Persistence  	= MQPER_PERSISTENT;
+		
+		SET ImageString = CAST( InputRoot.BLOB.BLOB AS CHARACTER CCSID OutputRoot.MQMD.CodedCharSetId ENCODING OutputRoot.MQMD.Encoding);
+		
+		Create Field OutputRoot.XML.(XML.XmlDecl)XML;
+		Set OutputRoot.XML.(XML.XmlDecl).(XML.Version)    = '1.0'; 
+		Set OutputRoot.XML.(XML.XmlDecl).(XML."Encoding") = 'UTF-8';
+		
+		
+		Create LastChild Of OutputRoot.XML As outRef Name 'ImageFile';
+		
+		Set outRef.Attributes.InFileName 
+			= COALESCE( InputLocalEnvironment.FTE.Transfer.SourceAgent, InputLocalEnvironment.File.Directory, '') 
+			|| '/' 
+			|| COALESCE( InputLocalEnvironment.FTE.Transfer.Name, InputLocalEnvironment.File.Name,'?');
+		
+		Set outRef.Image = ImageString;
+		
+		RETURN TRUE;
+	END;
+
+
+END MODULE;

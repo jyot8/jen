@@ -1,0 +1,43 @@
+------------------------------------------------------------------------------------------
+-- Finnair EAI framework
+------------------------------------------------------------------------------------------
+CREATE FILTER MODULE SF_Build_LogTimeStamp_Filter
+	
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		---------------------------------------------------------------
+		-- This compute builds us a timestamp in the format
+		-- [1997-07-16 19:20:30,452111] for use in the log messages
+		-- In the corresponding filter nodes we can code
+		-- ${Environment.Varaiables.LogTimeStamp} where we want this
+		-- to appear
+		--------------------------------------------------------------
+		-- Use a filter because we don't want to change or
+		-- touch the message and its less memory foot print
+		--------------------------------------------------------------
+		-- History
+		---------------------------------------------------------------
+
+
+		SET Environment.Variables.LogTimeStamp =
+		'[' ||
+		CAST(EXTRACT(YEAR FROM CURRENT_TIMESTAMP) AS CHAR)   || '-' ||
+		ReturnCharTwo(EXTRACT(MONTH FROM CURRENT_TIMESTAMP)) || '-' ||
+		ReturnCharTwo(EXTRACT(DAY FROM CURRENT_TIMESTAMP))   || ' ' ||
+		SUBSTRING(CAST(CURRENT_TIME As CHAR) FROM 7 FOR 8)   || ',' ||     	-- 7 excludes the TIME ' bit "10:28:32"
+		SUBSTRING(CAST(CURRENT_TIME As CHAR) FROM 16 FOR 6)  || ']';    	-- seconds places
+
+		RETURN TRUE;
+	END;
+
+	CREATE FUNCTION ReturnCharTwo(i INT) RETURNS CHAR
+	BEGIN
+		IF i < 10 THEN
+			RETURN '0' || CAST(i AS CHAR);
+		ELSE
+			RETURN CAST(i AS CHAR);
+		END IF;
+	END;
+
+END MODULE;

@@ -1,0 +1,85 @@
+/*******************************************************************************
+ *
+ * Finnair EAI Framework
+ *
+********************************************************************************
+*   Flow:      	  ERR_PreProcess_Failure_Message
+*                      
+*   Description:  Exception Management common subflow to make exceptions persist                                                                                  
+*
+********************************************************************************
+*   The subflow is responsible for the following:
+*	.	Stop exception messages from expiring 
+*	.	Making exception messages persistent
+*******************************************************************************/
+
+CREATE COMPUTE MODULE ERR_PreProcess_Failure_Message_Set_Message_Properties
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		
+		-- Set to Unlimited Expiry
+		Set OutputRoot.MQMD.Expiry = MQEI_UNLIMITED;
+
+		-- Set to Persistent
+		Set OutputRoot.MQMD.Persistence = MQPER_PERSISTENT;
+		Set OutputRoot.MQMD.Encoding 		= 273;
+		Set OutputRoot.MQMD.CodedCharSetId 	= 819;
+		Set OutputRoot.MQMD.Priority		= 0;  
+
+
+		IF InputRoot.MQRFH2.usr.MQMDPutDate IS NULL AND InputRoot.MQRFH2.usr.MQMDPutTime IS NULL THEN
+			IF NOT EXISTS(InputRoot.MQRFH2[]) THEN
+				SET OutputRoot.MQMD.Format = MQFMT_RF_HEADER_2;				
+				CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'MQRFH2' NAME 'MQRFH2';
+				SET OutputRoot.MQRFH2.(MQRFH2.Field)StrucId 		= MQRFH_STRUC_ID;
+				SET OutputRoot.MQRFH2.(MQRFH2.Field)Version 		= MQRFH_VERSION_2;
+				SET OutputRoot.MQRFH2.(MQRFH2.Field)StrucLength		= MQRFH_STRUC_LENGTH_FIXED_2;
+				SET OutputRoot.MQRFH2.(MQRFH2.Field)Format 			= MQFMT_STRING;
+			END IF;
+			SET OutputRoot.MQRFH2.usr.MQMDPutDate = InputRoot.MQMD.PutDate;
+			SET OutputRoot.MQRFH2.usr.MQMDPutTime = InputRoot.MQMD.PutTime;
+			
+			-- For any messages other than SYS_FAILURE, store the OWNER as queue name suffix. 
+			-- For SYS_FAILURE use the brokername to extract environment - eg. 6DEV2 from MB8DEV2 string
+			IF POSITION('SYS_FAILURE_' IN InputRoot.MQMD.SourceQueue) > 0 THEN				
+				SET OutputRoot.MQMD.ApplIdentityData = REPLACE(InputRoot.MQMD.SourceQueue, 'SYS_FAILURE_', '');
+			ELSE 
+				SET OutputRoot.MQMD.ApplIdentityData = SUBSTRING(SQL.BrokerName FROM 3 FOR 5);
+			END IF;		
+		END IF;
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE ERR_PreProcess_Failure_Message_Set_Owner
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		IF POSITION('SYS_FAILURE_' IN InputRoot.MQMD.SourceQueue) > 0 THEN				
+			SET OutputRoot.MQMD.ApplIdentityData = REPLACE(InputRoot.MQMD.SourceQueue, 'SYS_FAILURE_', '');
+		ELSE 
+			SET OutputRoot.MQMD.ApplIdentityData = SUBSTRING(SQL.BrokerName FROM 3 FOR 5);
+		END IF;		
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

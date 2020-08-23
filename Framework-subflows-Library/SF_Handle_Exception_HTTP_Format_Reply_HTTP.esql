@@ -1,0 +1,32 @@
+-- DO NOT MODIFY----
+-- Version history--- 
+--$MQSI $Log: SF_Handle_Exception_HTTP_Format_Reply_HTTP.esql,v $
+--$MQSI Revision 1.1  2015/02/19 12:43:49  panu.hyrylainen
+--$MQSI HTTP exception esql
+--$MQSI
+--Version history end---
+
+CREATE COMPUTE MODULE SF_Handle_Exception_HTTP_Format_Reply_HTTP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+--------------------------------------------------------------------------------------------
+-------------------------------- DO NOT MODIFY ---------------------------------------------
+DECLARE SF_Handle_Exception_Format_Reply_esql CHARACTER '$MQSI SF_Handle_Exception_Format_Reply_esql = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_Handle_Exception_HTTP_Format_Reply_HTTP.esql,v 1.1 2015/02/19 12:43:49 panu.hyrylainen Exp $ MQSI$';
+------------IT WILL UPDATED WHEN COMMIT/CHECK IN TO THE CVS---------------------------------		
+		
+		
+		-- build soap fault message --
+		DECLARE soapenv NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';
+		SET OutputRoot.SOAP.Context.Namespace.(SOAP.NamespaceDecl)xmlns:soapenv = soapenv;
+		
+		SET OutputRoot.SOAP.Body.soapenv:Fault.faultcode = 'Server' ;
+        SET OutputRoot.SOAP.Body.soapenv:Fault.faultstring = 'A service request error occurred during processing';
+        SET OutputRoot.SOAP.Body.soapenv:Fault.faultactor = Environment.Service.Operation.Name;
+        SET OutputRoot.SOAP.Body.soapenv:Fault.detail.Text = 'Server error. The service request error within the Finnair environment' ; 
+		
+		Set OutputLocalEnvironment.Destination.HTTP.ReplyStatusCode = '500';  -- HTTP header Status code - Internal Server Error
+		
+		RETURN TRUE;
+	END;
+	
+END MODULE;

@@ -1,0 +1,163 @@
+-- DO NOT MODIFY----
+-- Version history--- 
+--$MQSI $Log: SF_Handle_Exception_SOAP_Format_Exception_Message.esql,v $
+--$MQSI Revision 1.3  2015/02/09 08:10:29  panu.hyrylainen
+--$MQSI SF SOAP Exception handler - First version
+--$MQSI
+--Version history end---
+
+CREATE COMPUTE MODULE SF_Handle_Exception_SOAP_Format_Exception_Message
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+--------------------------------------------------------------------------------------------
+-------------------------------- DO NOT MODIFY ---------------------------------------------
+DECLARE SF_Handle_Exception_SOAP_Format_Exception_Message_esql CHARACTER '$MQSI SF_Handle_Exception_SOAP_Format_Exception_Message_esql = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_Handle_Exception_SOAP_Format_Exception_Message.esql,v 1.3 2015/02/09 08:10:29 panu.hyrylainen Exp $ MQSI$';
+------------IT WILL UPDATED WHEN COMMIT/CHECK IN TO THE CVS---------------------------------		
+
+	-- A system exception message needs to be created from the message and ESQL exception data.
+		
+		Declare outRef Reference to InputLocalEnvironment; -- shortcut to output message
+		Declare inRef  Reference To OutputLocalEnvironment;
+		Declare errorCode CHAR '';
+		Declare continueLoop BOOLEAN;		
+		-- Additional information for better codes (Jayanta, March 2014)
+		DECLARE vExceptionLabel		CHARACTER '';	-- Node name where Error Occured
+		DECLARE vPath 				CHARACTER '';	-- Current path within the exception list
+		DECLARE vExceptionType 		CHARACTER 'UNKNOWN';   -- Type of exception
+		DECLARE vString				CHARACTER '';   -- Temp string
+		
+		DECLARE Terminal CHAR;
+		DECLARE MessageID CHAR;
+		DECLARE CHAR_ID CHAR;
+		DECLARE CHAR_ID_Pad CHAR;
+		DECLARE MessageFlowName CHAR;
+		DECLARE Pad_String CHAR;
+		DECLARE InProps REFERENCE To InputProperties;
+		DECLARE inMessage REFERENCE To InputRoot.XMLNSC;
+		DECLARE ExcepRef REFERENCE To InputExceptionList;
+				
+		DECLARE MessageId 		BLOB;
+		DECLARE dRandom			DECIMAL;
+		DECLARE sRandom			CHAR;		
+		
+			-- Build a new message id 
+			SET CHAR_ID = CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyyMMddHHmmssSSSSSS');
+			SET dRandom = CAST(1000000 * (RAND() + 1) AS DECIMAL FORMAT '#######.##');
+			SET sRandom = SUBSTRING(CAST(dRandom AS CHAR) FROM 1 FOR 7) || 'xxxxxxxxxxxxxxxxx'; 
+			SET CHAR_ID_Pad = CHAR_ID || SUBSTRING(sRandom FROM 1 FOR (24 - LENGTH(CHAR_ID)));		
+			SET MessageId = CAST(CHAR_ID_Pad AS BLOB CCSID 850);		
+
+			-- set message flow name
+			SET MessageFlowName = SQL.MessageFlowLabel;
+			SET MessageFlowName = SUBSTRING(UPPER(MessageFlowName) FROM 1 FOR 48);		
+		
+			-- SOAP/HTTP origin messages will not have been backed out to SYS_FAILURE
+			-- Need to put the original SOAP message to the SYS_FAILURE queue with a message ID
+			-- Build up an 'MQ' message			
+			SET OutputRoot.Properties = InProps;
+       	 	SET OutputRoot.Properties.ReplyProtocol = 'MQ';
+  			SET OutputRoot.Properties.ContentType VALUE = NULL;
+			CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD' NAME 'MQMD';
+		
+			-- If we have a message ID in the header use it, if not create one.
+			SET OutputRoot.MQMD.MsgId = MessageId;
+			SET OutputRoot.MQMD.Format = MQFMT_STRING;      
+
+			MOVE inMessage TO InputRoot;			
+			
+			IF LASTMOVE(inMessage) THEN
+		        --CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'XMLNSC' NAME 'XMLNSC';
+				CREATE FIRSTCHILD of OutputRoot.XMLNSC TYPE XMLNSC.XmlDeclaration NAME 'XmlDeclaration';
+				SET OutputRoot.XMLNSC.(XMLNSC.XmlDeclaration)*.(XMLNSC.Attribute)Version = '1.0'; 
+				SET OutputRoot.XMLNSC.(XMLNSC.XmlDeclaration)*.(XMLNSC.Attribute)Encoding = 'UTF-8';
+		
+				SET OutputRoot.XMLNSC.FailureReport.HTTPInputHeader = inMessage.HTTPInputHeader;
+				SET OutputRoot.XMLNSC.FailureReport.Message = inMessage.XMLNSC;
+			ELSE					
+				MOVE inMessage TO InputRoot.BLOB.BLOB;
+				IF LASTMOVE(inMessage) THEN
+					CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'BLOB' NAME 'BLOB';
+					SET OutputRoot.BLOB.BLOB = inMessage;
+				ELSE
+					CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'XMLNSC' NAME 'XMLNSC';
+					SET OutputRoot.XMLNSC.BodyContent = 'UNKNOWN';
+				END IF;
+					
+			END IF;
+
+		SET Terminal = 'out';
+
+		PROPAGATE TO TERMINAL Terminal;
+			
+		-- Create new output message with message ID matching that in message put to SYS_FAILURE
+			SET OutputRoot.Properties = InProps;
+        	SET OutputRoot.Properties.ReplyProtocol = 'MQ';
+  			SET OutputRoot.Properties.ContentType VALUE = NULL;
+			CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD' NAME 'MQMD';
+		
+			SET OutputRoot.MQMD.Format = MQFMT_STRING;
+			SET OutputRoot.MQMD.MsgId = MessageId;
+		
+		Create FIRSTCHILD of OutputRoot.XMLNSC TYPE XMLNSC.XmlDeclaration NAME 'XmlDeclaration';
+		Set OutputRoot.XMLNSC.(XMLNSC.XmlDeclaration)*.(XMLNSC.Attribute)Version = '1.0'; 
+		Set OutputRoot.XMLNSC.(XMLNSC.XmlDeclaration)*.(XMLNSC.Attribute)Encoding = 'UTF-8';
+		
+		Create LastChild Of OutputRoot.XMLNSC As outRef Name 'exceptionReport';
+		--Set outRef.queuedetails.queueName = MQSourceQueue;-- Defect 44590
+		Set outRef.flowdetails.messageflowname = MessageFlowName;	
+				
+		Set continueLoop = TRUE;
+		Move inRef to InputExceptionList;
+
+		-- Check if Label name is available
+		IF (inRef.RecoverableException.Label IS NOT NULL) THEN
+				SET vExceptionLabel = inRef.RecoverableException.Label;
+		END IF;
+		SET vPath = 'InputExceptionList.[1]';		
+		
+		-- Move to the last RecoverableException branch of InputExceptionList
+		WHILE continueLoop DO
+			If CARDINALITY(inRef.RecoverableException[]) = 0 Then
+				Set continueLoop = FALSE;
+				IF (EVAL( 'FIELDNAME(' || vPath || ') IS NOT NULL' )) THEN
+					SET vString = EVAL( 'FIELDNAME(' || vPath || ')' );
+					IF (LENGTH(vString) > 0 AND vString NOT IN ('Text', 'Label', 'Inserts', 'Insert')) THEN
+						SET vExceptionType = vString;
+					END IF;
+				END IF;
+			Else	
+				Move inRef to inRef.RecoverableException[1];
+				SET vPath = vPath || '.*[<]';
+			End If;	
+		End While;
+		
+		If inRef.UserException.Insert[3].Text IS NOT NULL Then
+			Set errorCode = TRIM('''' FROM inRef.UserException.Insert[3].Text);
+		Else
+			Set errorCode = 'EAI:'||COALESCE( vExceptionType,'UNKNOWN');
+		End If;
+			
+		Set outRef.errorCode = errorCode;	
+		Set outRef.ExceptionLabel = vExceptionLabel;
+		Set outRef.exceptionText = InputExceptionList;
+				
+		PROPAGATE TO TERMINAL 1;
+					
+		RETURN FALSE; -- Already returned the message(s)
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

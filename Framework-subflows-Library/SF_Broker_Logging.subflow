@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmFlowOrder.msgnode="ComIbmFlowOrder.msgnode" xmlns:ComIbmMQOutput.msgnode="ComIbmMQOutput.msgnode" xmlns:ComIbmTrace.msgnode="ComIbmTrace.msgnode" xmlns:SF_Broker_Warehousing.subflow="SF_Broker_Warehousing.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SF_Broker_Logging.subflow"
+    nsPrefix="SF_Broker_Logging.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.WarehouseType" name="WarehouseType" lowerBound="1" defaultValueLiteral="OUTPUT">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="SF_Broker_Logging" bundleName="SF_Broker_Logging" pluginId="Framework-subflows-Library"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj16/SF_Broker_Logging.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj30/SF_Broker_Logging.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="Broker Logging"/>
+    <longDescription xmi:type="utility:ConstantString" string="V9.006 Finnair Framework for IIB 11/04/2014"/>
+    <version xmi:type="utility:ConstantString" string="V9.006 Finnair Framework for IIB 11/04/2014"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input" location="23,-80">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.Input" bundleName="SF_Broker_Logging" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output" location="562,-79">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Output" bundleName="SF_Broker_Logging" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="665,-16" queueName="EAI.LOGGING" transactionMode="no" persistenceMode="yes" newMsgId="true">
+        <translation xmi:type="utility:ConstantString" string="EAI.LOGGING"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="533,-17" computeExpression="esql://routine/#SF_Broker_Logging_Format_Log_Message.Main">
+        <translation xmi:type="utility:ConstantString" string="Format_Log_Message"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="175,-80" computeExpression="esql://routine/#SF_Broker_Logging_CheckLogLevel.Main">
+        <translation xmi:type="utility:ConstantString" string="Check_Log_Level"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFlowOrder.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_8" location="440,-17">
+        <translation xmi:type="utility:ConstantString" string="Flow Order"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="95,-80" pattern="${Root}">
+        <translation xmi:type="utility:ConstantString" string="TraceIn"/>
+      </nodes>
+      <nodes xmi:type="SF_Broker_Warehousing.subflow:FCMComposite_1" xmi:id="FCMComposite_1_9" location="208,-17">
+        <translation xmi:type="utility:ConstantString" string="SF_Broker_Warehousing"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_20" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.first" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_24" targetNode="FCMComposite_1_8" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.out1" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_6" sourceNode="InTerminal.Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_8" sourceNode="FCMComposite_1_9" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_9" targetNode="FCMComposite_1_9" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.out2" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.second" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.WarehouseType">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.WarehouseType" bundleName="SF_Broker_Warehousing" pluginId="Framework-subflows-Library"/>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.WarehouseType" overriddenNodes="FCMComposite_1_9">
+      <overriddenAttribute href="SF_Broker_Warehousing.subflow#Property.WarehouseType"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

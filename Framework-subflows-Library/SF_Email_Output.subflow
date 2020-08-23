@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmEmailOutput.msgnode="ComIbmEmailOutput.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SF_Email_Output.subflow"
+    nsPrefix="SF_Email_Output.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.securityIdentity" name="securityIdentity">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.subject" name="subject">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.bodyContentType" name="bodyContentType" lowerBound="1" eType="//@eClassifiers.1" defaultValueLiteral="text/plain"/>
+    <translation xmi:type="utility:TranslatableString" key="SF_Email_Output" bundleName="SF_Email_Output" pluginId="Framework-subflows-Library"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj16/SF_Email_Output.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj30/SF_Email_Output.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="NOT YET IMPLEMENTED"/>
+    <version xmi:type="utility:ConstantString" string="DO NOT USE"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input" location="20,20">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.Input" bundleName="SF_Email_Output" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output" location="401,25">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Output" bundleName="SF_Email_Output" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="ComIbmEmailOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="281,21">
+        <translation xmi:type="utility:ConstantString" string="Email Output"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="96,20" computeExpression="esql://routine/#SF_Email_Output_Compute.Main">
+        <translation xmi:type="utility:ConstantString" string="Set_Parameters_From_Routing"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="InTerminal.Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" describedAttribute="Property.securityIdentity">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.securityIdentity" bundleName="ComIbmEmailOutput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+        <propertyDescriptor groupName="Group.Basic" describedAttribute="Property.subject">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.subject" bundleName="ComIbmEmailOutput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+          <propertyDescriptor groupName="Group.Basic" describedAttribute="Property.bodyContentType">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.bodyContentType" bundleName="ComIbmEmailOutput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.securityIdentity" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmEmailOutput.msgnode#Property.securityIdentity"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.subject" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmEmailOutput.msgnode#Property.subject"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.bodyContentType" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmEmailOutput.msgnode#Property.bodyContentType"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="bodyContentType.text/plain" name="text/plain"/>
+    <eLiterals xmi:id="bodyContentType.text/xml" name="text/xml" value="1"/>
+    <eLiterals xmi:id="bodyContentType.text/html" name="text/html" value="2"/>
+  </eClassifiers>
+</ecore:EPackage>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><xsd:schema elementFormDefault="qualified" targetNamespace="http://www.ibm.com/websphere/crossworlds/2002/BOSchema/ImageFile" xmlns:MO_ImageFileAttributes="http://www.ibm.com/websphere/crossworlds/2002/BOSchema/MO_ImageFileAttributes" xmlns:bx="http://www.ibm.com/websphere/crossworlds/2002/BOSchema" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:annotation>
+    <xsd:documentation>Thu Jul 13 13:40:05 CEST 2006</xsd:documentation>
+  </xsd:annotation>
+  <xsd:import namespace="http://www.ibm.com/websphere/crossworlds/2002/BOSchema/MO_ImageFileAttributes" schemaLocation="MO_ImageFileAttributes.xsd"/>
+  <xsd:element name="ImageFile">
+    <xsd:annotation>
+      <xsd:appinfo>
+        <bx:boDefinition version="3.0.0">
+          <bx:appSpecificInfo>cw_mo_JTextConfig = Attributes</bx:appSpecificInfo>
+        </bx:boDefinition>
+      </xsd:appinfo>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element minOccurs="0" name="Attributes">
+          <xsd:annotation>
+            <xsd:appinfo>
+              <bx:boAttribute>
+                <bx:attributeInfo isForeignKey="false" isKey="true"/>
+                <bx:childObjectInfo relationship="Containment" version="3.0.0"/>
+              </bx:boAttribute>
+            </xsd:appinfo>
+          </xsd:annotation>
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element ref="MO_ImageFileAttributes:MO_ImageFileAttributes"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element minOccurs="0" name="Image">
+          <xsd:annotation>
+            <xsd:appinfo>
+              <bx:boAttribute>
+                <bx:attributeInfo isForeignKey="false" isKey="false"/>
+              </bx:boAttribute>
+            </xsd:appinfo>
+          </xsd:annotation>
+          <xsd:simpleType>
+            <xsd:restriction base="xsd:string">
+              <xsd:maxLength value="20000000"/>
+            </xsd:restriction>
+          </xsd:simpleType>
+        </xsd:element>
+        <xsd:element minOccurs="0" name="ObjectEventId" type="xsd:string"/>
+      </xsd:sequence>
+      <xsd:attribute default="0.0.0" name="version" type="xsd:token"/>
+      <xsd:attribute default="false" name="delta" type="xsd:boolean"/>
+      <xsd:attribute default="" name="locale" type="xsd:string"/>
+      <xsd:attribute name="verb" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:NMTOKEN">
+            <xsd:enumeration value="Create"/>
+            <xsd:enumeration value="Delete"/>
+            <xsd:enumeration value="Retrieve"/>
+            <xsd:enumeration value="Update"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

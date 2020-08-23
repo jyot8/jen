@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmPassthru.msgnode="ComIbmPassthru.msgnode" xmlns:SF_DB_Up_Start_Flow.subflow="SF_DB_Up_Start_Flow.subflow" xmlns:SF_TimeOut_Notification.subflow="SF_TimeOut_Notification.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="Timer_DB_Flow_Check.msgflow"
+    nsPrefix="Timer_DB_Flow_Check.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.dataSource" name="dataSource" defaultValueLiteral="SCOPE1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.FLOWNAME" name="FLOWNAME" defaultValueLiteral="DBOps">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.uniqueIdentifier" name="uniqueIdentifier" lowerBound="1" defaultValueLiteral="DBFLTIMER">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.timeoutInterval" name="timeoutInterval" defaultValueLiteral="60">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="Timer_DB_Flow_Check" bundleName="Timer_DB_Flow_Check" pluginId="DB_Availability_Check"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/DB_Availability_Check/icons/full/obj16/Timer_DB_Flow_Check.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/DB_Availability_Check/icons/full/obj30/Timer_DB_Flow_Check.gif"/>
+    <composition>
+      <nodes xmi:type="ComIbmPassthru.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="447,168">
+        <translation xmi:type="utility:ConstantString" string="Pass through"/>
+      </nodes>
+      <nodes xmi:type="SF_DB_Up_Start_Flow.subflow:FCMComposite_1" xmi:id="FCMComposite_1_4" location="237,168" dataSource="IIBDB" FLOWNAME="DBOps">
+        <translation xmi:type="utility:ConstantString" string="SF_DB_Up_Start_Flow"/>
+      </nodes>
+      <nodes xmi:type="SF_TimeOut_Notification.subflow:FCMComposite_1" xmi:id="FCMComposite_1_1" location="19,169" uniqueIdentifier="DBFLOWTIMER">
+        <translation xmi:type="utility:ConstantString" string="SF_TimeOut_Notification"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" describedAttribute="Property.dataSource">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.dataSource" bundleName="ComIbmFilter" pluginId="com.ibm.etools.mft.ibmnodes"/>
+        <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.FLOWNAME">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.FLOWNAME" bundleName="SF_DB_Up_Start_Flow" pluginId="DB_Availability_Check"/>
+          <propertyDescriptor groupName="Group.Basic" configurable="true" describedAttribute="Property.uniqueIdentifier">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.uniqueIdentifier" bundleName="ComIbmTimeoutNotification" pluginId="com.ibm.etools.mft.ibmnodes"/>
+            <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.TimeoutIntervalPropertyEditor" configurable="true" describedAttribute="Property.timeoutInterval">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.timeoutInterval" bundleName="ComIbmTimeoutNotification" pluginId="com.ibm.etools.mft.ibmnodes"/>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.dataSource" overriddenNodes="FCMComposite_1_4">
+      <overriddenAttribute href="SF_DB_Up_Start_Flow.subflow#Property.dataSource"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.FLOWNAME" overriddenNodes="FCMComposite_1_4">
+      <overriddenAttribute href="SF_DB_Up_Start_Flow.subflow#Property.FLOWNAME"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.uniqueIdentifier" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="SF_TimeOut_Notification.subflow#Property.uniqueIdentifier"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.timeoutInterval" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="SF_TimeOut_Notification.subflow#Property.timeoutInterval"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

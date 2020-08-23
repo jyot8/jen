@@ -1,0 +1,56 @@
+
+
+CREATE COMPUTE MODULE SF_Handle_Exception_Format_Reply
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Temporary .... final solution would be to define an agreed format for these 
+		
+		Declare outRef Reference to InputLocalEnvironment; -- shortcut to output message
+		Declare inRef  Reference To OutputLocalEnvironment;
+		Declare errorCode CHAR '';
+		Declare continueLoop BOOLEAN;
+			
+		Set OutputRoot.Properties    		= InputRoot.Properties;
+		Set OutputRoot.MQMD		    		= InputRoot.MQMD;
+		Set OutputRoot.MQMD.MsgId    		= InputRoot.MQMD.MsgId;
+		Set OutputRoot.MQMD.Format 			= MQFMT_STRING;
+		Set OutputRoot.MQMD.Encoding 		= 273;
+		Set OutputRoot.MQMD.CodedCharSetId 	= 819;
+		Set OutputRoot.MQMD.Expiry   		= -1;
+		
+		-- Set OutputRoot.MQRFH2.usr.responseDetails = Null;	 --00.10 commented by VK7 against defect 32279	
+		
+		Create Field OutputRoot.XML.(XML.XmlDecl)XML;
+		Set OutputRoot.XML.(XML.XmlDecl).(XML.Version)    = '1.0'; 
+		Set OutputRoot.XML.(XML.XmlDecl).(XML."Encoding") = 'UTF-8';-- Defect 44590
+		
+		
+		Create LastChild Of OutputRoot.XML As outRef Name 'exceptionReport';-- Defect 44590
+		Set outRef.queuedetails.queueName = InputRoot.MQMD.SourceQueue;
+		
+		Set continueLoop = TRUE;
+		Move inRef to InputExceptionList;
+		
+		-- Move to the last RecoverableException branch of InputExceptionList
+		WHILE continueLoop DO
+			If CARDINALITY(inRef.RecoverableException[]) = 0 Then
+				Set continueLoop = FALSE;
+			Else	
+				Move inRef to inRef.RecoverableException[1];
+			End If;	
+		End While;
+		
+		If inRef.UserException.Insert[3].Text IS NOT NULL Then
+			Set errorCode = TRIM('''' FROM inRef.UserException.Insert[3].Text);
+		Else
+			Set errorCode = 'UNKNOWN';
+		End If;
+			
+		Set outRef.errorCode = errorCode;	
+		Set outRef.exceptionText = InputExceptionList;
+		Set outRef.clientIndicator = InputRoot.XML.exceptionReport.clientindicator || '.' || errorCode;
+		
+		RETURN TRUE;
+	END;
+	
+END MODULE;

@@ -1,0 +1,51 @@
+   DECLARE Sleep_Time  EXTERNAL INTEGER 5000;
+   DECLARE BackoutCounter  EXTERNAL INTEGER 3;
+   DECLARE Subject  EXTERNAL CHARACTER 'Action Required: DB Exception in OPS_LEG_DETAIL';
+   DECLARE ToAddress1  EXTERNAL CHARACTER 'SLEAI@fi.ibm.com';
+   DECLARE ToAddress2  EXTERNAL CHARACTER 'jukka.vahatorma@fi.ibm.com';
+   DECLARE MailLine1  EXTERNAL CHARACTER '';
+   DECLARE MailLine2  EXTERNAL CHARACTER '';
+   DECLARE MailLine3  EXTERNAL CHARACTER '';
+   DECLARE MailLine4  EXTERNAL CHARACTER '';
+
+   CREATE COMPUTE MODULE SF_Handle_Exception_DB_Manage_DB_Exceptions
+	 CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE returnValue BOOLEAN;
+		SET returnValue = SLEEP(Sleep_Time); /* attempt to sleep for Sleep_Time seconds */
+		IF ( (InputRoot.MQMD.BackoutCount > BackoutCounter - 1) AND MOD(InputRoot.MQMD.BackoutCount,BackoutCounter) = 0 ) THEN
+--			SET	OutputRoot.XMLNSC.Rootfield.subfield1 = 'Testing 1. BackoutCount = ' || CAST(InputRoot.MQMD.BackoutCount As CHARACTER);
+--			SET	OutputRoot.XMLNSC.Rootfield.subfield2 = 'Testing 2' ;
+--			SET	OutputRoot.XMLNSC.Rootfield.subfield3 = 'Testing 3' ;
+			
+			SET OutputRoot.XMLNSC.Message.Subject = Subject;
+			SET OutputRoot.XMLNSC.Message.Rfc822Udf.Mailer = 'WAS java client';
+			SET OutputRoot.XMLNSC.Message.Rfc822Udf.Author = 'SL EAI';
+			SET OutputRoot.XMLNSC.Message.From = 'noreply.wmb@finnair.fi';
+			SET OutputRoot.XMLNSC.Message.To[1] = ToAddress1;
+			SET OutputRoot.XMLNSC.Message.To[2] = ToAddress2;
+			SET OutputRoot.XMLNSC.Message.Body.Line[1] = MailLine1  || CAST(InputRoot.MQMD.BackoutCount As CHARACTER);--'DB Exception has occured in OPS_LEG_DETAIL. BackoutCount = ';
+			SET OutputRoot.XMLNSC.Message.Body.Line[2] = MailLine2; --'Please make sure that you stop OPS_LEG_DETAIL till Database exception is fixed in SCOPE database.';
+			SET OutputRoot.XMLNSC.Message.Body.Line[3] = MailLine3; --'You can check the corresponding exception details in SYS_EXCEPTION queue.';
+			SET OutputRoot.XMLNSC.Message.Body.Line[4] = MailLine4; --'Thank You.'
+			
+			PROPAGATE TO TERMINAL 'out1';
+			RETURN FALSE;
+		END IF;
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

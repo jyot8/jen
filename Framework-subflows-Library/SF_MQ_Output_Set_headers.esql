@@ -1,0 +1,17 @@
+
+
+CREATE COMPUTE MODULE SF_MQ_Output_Set_headers
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		SET OutputRoot = InputRoot;
+		SET OutputRoot.MQMD.ReplyToQ 
+			= InputRoot.MQMD.SourceQueue; 	-- Transfer our input queue name to the warehouse
+		SET OutputRoot.MQMD.ReplyToQMgr 
+			= InputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName; -- and the output queue name
+		SET OutputRoot.MQMD.CorrelId
+			= InputRoot.MQMD.MsgId; 
+
+		RETURN TRUE;
+	END;
+END MODULE;

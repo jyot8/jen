@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmPassthru.msgnode="ComIbmPassthru.msgnode" xmlns:ComIbmResetContentDescriptor.msgnode="ComIbmResetContentDescriptor.msgnode" xmlns:SF_Handle_Exception_SOAP.subflow="SF_Handle_Exception_SOAP.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SF_SOAP_Framework.subflow"
+    nsPrefix="SF_SOAP_Framework.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.useHTTPS.internal_npcompiler" name="useHTTPS.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.URLSpecifier.internal_npcompiler" name="URLSpecifier.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.faultFormat.internal_npcompiler" name="faultFormat.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.timeoutForClient.internal_npcompiler" name="timeoutForClient.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.messageDomainProperty.internal_npcompiler" name="messageDomainProperty.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.identityIssuedByLocation.internal_npcompiler" name="identityIssuedByLocation.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.identityPasswordLocation.internal_npcompiler" name="identityPasswordLocation.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.identityTokenLocation.internal_npcompiler" name="identityTokenLocation.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.identityType.internal_npcompiler" name="identityType.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.catchSecurityExceptions.internal_npcompiler" name="catchSecurityExceptions.internal_npcompiler" lowerBound="1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="SF_SOAP_Framework" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj16/SF_SOAP_Framework.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj30/SF_SOAP_Framework.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="Framework support for SOAP input node"/>
+    <longDescription xmi:type="utility:ConstantString" string="V9.006 Finnair Framework for IIB 11/04/2014"/>
+    <version xmi:type="utility:ConstantString" string="V9.006 Finnair Framework for IIB 11/04/2014"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output1" location="386,51">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Out" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output2" location="386,121">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Timeout" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input1" location="39,-39">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.SOAP_Out" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input2" location="30,121">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.SOAP_Timeout" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input3" location="38,194">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.SOAP_Catch" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="233,50" computeExpression="esql://routine/#SF_HTTP_Input_Compute.Main">
+        <translation xmi:type="utility:ConstantString" string="Save_SOAP_HTTP_context"/>
+      </nodes>
+      <nodes xmi:type="ComIbmPassthru.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="186,121">
+        <translation xmi:type="utility:ConstantString" string="Pass through1"/>
+      </nodes>
+      <nodes xmi:type="ComIbmResetContentDescriptor.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="143,46" messageDomain="XMLNS" resetMessageDomain="true">
+        <translation xmi:type="utility:ConstantString" string="RCD: XMLNS"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input" location="42,46">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.HTTP_Out" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="SF_Handle_Exception_SOAP.subflow:FCMComposite_1" xmi:id="FCMComposite_1_2" location="150,194">
+        <translation xmi:type="utility:ConstantString" string="SF_Handle_Exception_SOAP"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="OutTerminal.Output1" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_10" targetNode="FCMComposite_1_6" sourceNode="InTerminal.Input2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_11" targetNode="OutTerminal.Output2" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_1" sourceNode="InTerminal.Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_4" sourceNode="InTerminal.Input1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="InTerminal.Input3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.useHTTPS.internal_npcompiler">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.useHTTPS.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+        <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.URLSpecifier.internal_npcompiler">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.URLSpecifier.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+          <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.faultFormat.internal_npcompiler">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.faultFormat.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+            <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.timeoutForClient.internal_npcompiler">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.timeoutForClient.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+              <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.messageDomainProperty.internal_npcompiler">
+                <propertyName xmi:type="utility:TranslatableString" key="Property.messageDomainProperty.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+                <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.identityIssuedByLocation.internal_npcompiler">
+                  <propertyName xmi:type="utility:TranslatableString" key="Property.identityIssuedByLocation.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+                  <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.identityPasswordLocation.internal_npcompiler">
+                    <propertyName xmi:type="utility:TranslatableString" key="Property.identityPasswordLocation.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+                    <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.identityTokenLocation.internal_npcompiler">
+                      <propertyName xmi:type="utility:TranslatableString" key="Property.identityTokenLocation.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+                      <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.identityType.internal_npcompiler">
+                        <propertyName xmi:type="utility:TranslatableString" key="Property.identityType.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+                        <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" configurable="true" userDefined="true" describedAttribute="Property.catchSecurityExceptions.internal_npcompiler">
+                          <propertyName xmi:type="utility:TranslatableString" key="Property.catchSecurityExceptions.internal_npcompiler" bundleName="SF_SOAP_Framework" pluginId="Framework-subflows-Library"/>
+                        </propertyDescriptor>
+                      </propertyDescriptor>
+                    </propertyDescriptor>
+                  </propertyDescriptor>
+                </propertyDescriptor>
+              </propertyDescriptor>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

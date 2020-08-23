@@ -1,0 +1,5 @@
+-- Retrieve routing rows for the integration from EAI.ROUTING table 
+SELECT * FROM EAI.ROUTING 
+WHERE 
+KEY_INTEGRATION IN (10243)
+ORDER BY KEY_ROUTING WITH UR;

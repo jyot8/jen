@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<project name="main.build.deploy" default="application.deploy" xmlns:ac="antlib:net.sf.antcontrib">
+	
+	<target name="application.deploy" description="This ant target invokes master ant which executes the broker build, override and deploy ant targets.">
+		
+		<property file= "C:\IIB_Environment\IIB_set_Env" />
+				<property name="ant.bars.basedir" value="${antbasedir}" />
+				<echo message="Workspace at ${ant.bars.basedir}" />
+				<property name="workspaces.dir" value="${ant.bars.basedir}" />
+		        <property name="app.base.dir" value="${basedir}"/>
+				<property file="application"/>
+				<property name="application.name" value="${applicationlist}" />
+				<property name="app.build.dir" value="${workspaces.dir}\${application.name}\Build"/>
+				<ac:if>
+					<equals arg1="${app.base.dir}" arg2="${app.build.dir}"/>
+					<ac:then>
+						<echo message="Invoking Master Deploy Script"/>
+						<ant antfile="${workspaces.dir}\Master_Build_Deploy\Deploy\ftp-deploy-bar.xml" inheritall="true"/>
+					</ac:then>
+					<ac:else>
+						<echo message="Check ${app.build.dir}\application"/>
+						<echo message="applicationlist is wrongly defined in application file"/>
+						<fail message="---------Error in the applicationlist---------------"/>
+					</ac:else>
+				</ac:if>
+			
+	<echo message="Completed invoking the Master deploy script"/>		
+	</target>
+</project>

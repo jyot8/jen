@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <xsd:include schemaLocation=".wmqi21.mxsd"/>
+    <xsd:complexType name="ROWMESSAGE_TYPE_LF">
+        <xsd:annotation>
+            <xsd:documentation source="WMQI_DOCUMENTATION">ROWMESSAGE_TYPE.\s</xsd:documentation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRComplexType composition="orderedSet"/>
+        <tdsStructRep dataElementSeparation="VariableLengthElementsDelimited" delimiter="&amp;#xA;" messageSetDefaultRep="TDS" suppressAbsentElementDelimiters="Never"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element maxOccurs="1000000000" minOccurs="0" name="RECORD" nillable="false" type="xsd:string">
+                <xsd:annotation>
+                    <xsd:documentation source="WMQI_DOCUMENTATION">RECORD.\s</xsd:documentation>
+                    <xsd:appinfo source="WMQI_APPINFO">
+            <tdsElemRep justification="leftJustify" messageSetDefaultRep="TDS" precision="-1"/>
+            <tdsInclRep messageSetDefaultRep="TDS" repeatingElementDelimiter="&amp;#xA;"/>
+          </xsd:appinfo>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:element name="ROWMESSAGE_LF" type="ROWMESSAGE_TYPE_LF">
+        <xsd:annotation>
+            <xsd:documentation source="WMQI_DOCUMENTATION">ROWMESSAGE.\s</xsd:documentation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRMessage messageDefinition="/0/ROWMESSAGE_LF;XSDElementDeclaration$MRObject"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="ROWMESSAGE_TYPE_CRLF">
+        <xsd:annotation>
+            <xsd:documentation source="WMQI_DOCUMENTATION">ROWMESSAGE_TYPE.\s</xsd:documentation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRComplexType composition="orderedSet"/>
+        <tdsStructRep dataElementSeparation="VariableLengthElementsDelimited" delimiter="&amp;#xD;&amp;#xA;" messageSetDefaultRep="TDS" suppressAbsentElementDelimiters="Never"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element maxOccurs="1000000000" minOccurs="0" name="RECORD" nillable="false" type="xsd:string">
+                <xsd:annotation>
+                    <xsd:documentation source="WMQI_DOCUMENTATION">RECORD.\s</xsd:documentation>
+                    <xsd:appinfo source="WMQI_APPINFO">
+            <tdsElemRep justification="leftJustify" messageSetDefaultRep="TDS" precision="-1"/>
+            <tdsInclRep messageSetDefaultRep="TDS" repeatingElementDelimiter="&amp;#xD;&amp;#xA;"/>
+          </xsd:appinfo>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:element name="ROWMESSAGE_CRLF" type="ROWMESSAGE_TYPE_CRLF">
+        <xsd:annotation>
+            <xsd:documentation source="WMQI_DOCUMENTATION">ROWMESSAGE.\s</xsd:documentation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRMessage messageDefinition="/0/ROWMESSAGE_CRLF;XSDElementDeclaration=1$MRObject"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:element name="ROWMESSAGE_ASCII_LF" type="ROWMESSAGE_TYPE_ASCII_LF">
+        <xsd:annotation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRMessage messageDefinition="/0/ROWMESSAGE_ASCII_LF;XSDElementDeclaration=2$MRObject"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:complexType name="ROWMESSAGE_TYPE_ASCII_LF">
+        <xsd:annotation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRComplexType composition="orderedSet"/>
+        <tdsStructRep dataElementSeparation="VariableLengthElementsDelimited" delimiter="&lt;LF&gt;" messageSetDefaultRep="TDS" suppressAbsentElementDelimiters="Never"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+        <xsd:sequence maxOccurs="1" minOccurs="1">
+            <xsd:element maxOccurs="1000000000" minOccurs="0" name="RECORD" nillable="false" type="xsd:string">
+                <xsd:annotation>
+                    <xsd:appinfo source="WMQI_APPINFO">
+            <tdsElemRep justification="leftJustify" length="0" messageSetDefaultRep="TDS" precision="-1"/>
+          </xsd:appinfo>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="ROWMESSAGE_TYPE_ASCII_CRLF">
+        <xsd:annotation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRComplexType composition="orderedSet"/>
+        <tdsStructRep dataElementSeparation="VariableLengthElementsDelimited" delimiter="&lt;CR&gt;&lt;LF&gt;" groupIndicator="" groupTerminator="" messageSetDefaultRep="TDS" suppressAbsentElementDelimiters="Never"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+        <xsd:sequence maxOccurs="1" minOccurs="1">
+            <xsd:element maxOccurs="1000000000" minOccurs="0" name="RECORD" nillable="false" type="xsd:string">
+                <xsd:annotation>
+                    <xsd:appinfo source="WMQI_APPINFO">
+            <tdsElemRep justification="leftJustify" messageSetDefaultRep="TDS" precision="-1"/>
+            <tdsInclRep messageSetDefaultRep="TDS" repeatingElementDelimiter="&lt;CR&gt;&lt;LF&gt;"/>
+          </xsd:appinfo>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:element name="ROWMESSAGE_ASCII_CRLF" nillable="false" type="ROWMESSAGE_TYPE_ASCII_CRLF">
+        <xsd:annotation>
+            <xsd:appinfo source="WMQI_APPINFO">
+        <MRMessage messageDefinition="/0/ROWMESSAGE_ASCII_CRLF;XSDElementDeclaration=3$MRObject"/>
+      </xsd:appinfo>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:annotation>
+    <xsd:documentation source="WMQI_DOCUMENTATION">Messageset\sreads\srows\sinto\sRECORD-elements.\sEmpty\slines\se.g.\sNULL\selements\sare\signored.</xsd:documentation>
+  </xsd:annotation>
+</xsd:schema>

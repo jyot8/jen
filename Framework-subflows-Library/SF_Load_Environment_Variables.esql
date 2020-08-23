@@ -1,0 +1,283 @@
+
+
+
+CREATE COMPUTE MODULE SF_Load_Environment_Values
+	
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		/****************************************************************************
+		*   Compute node ESQL to load environment variables from a database into
+		*   shared memory
+		*
+		*   Any compute node using this ESQL must have the following set:
+		*
+		*   - The database source set to the database containing the 
+		*	ENVIRONMENT_VALUES table
+		*   - The compute mode set to environment.
+		*****************************************************************************/
+		
+		/*
+			 NOTE: evRef is declared only if required - see ATOMIC processing below.
+			 If it is declared when Variables does not exist, it points to 'Environment'
+		*/
+		 
+		--DECLARE evRef 		REFERENCE TO Environment.Variables; -- Used as a shortcut to Environment.Variables
+		DECLARE oleRef 			REFERENCE TO OutputLocalEnvironment;
+		DECLARE DB_IN_PARAMS 	REFERENCE TO OutputLocalEnvironment;	
+		DECLARE DB_OUT_PARAMS 	REFERENCE TO OutputLocalEnvironment;
+		DECLARE sql 			CHARACTER;
+		DECLARE brokerName		CHARACTER;
+		DECLARE exeGroupName	CHARACTER;
+		DECLARE flowName		CHARACTER;
+		DECLARE maxRows			INTEGER;
+		DECLARE valueIndex		INTEGER;
+		DECLARE envValues	ROW;
+		DECLARE envRef		REFERENCE TO envValues;
+
+		CALL getEnvValues(envRef);
+		
+		/*
+			Neither the whole message nor the message headers are copied across.
+			This is because the compute node is run in "LocalEnvironment" mode.
+			By setting the compute node to this value the OutputRoot is automatically
+			set to the InputRoot without any copying of the message content being done.
+			This mode should always be used when the message body does not need to be 
+			modified. 
+		*/
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage(); 
+	
+		/*
+			To speed the processing, the database will only be read when the first message enters the
+			message flow. The retrieved database table will be stored in memory for any other messages
+			to use. The cache can also be refreshed by putting a message onto the CACHE.MEMORY.REFRESH queue.
+			
+			It is important to note that all this processing is surrounded by a begin atomic block.
+			This makes sure that only one message accesses the cache at a time. This is very important
+			because the cache could be refreshed at any point. If two messages are using the cache at the
+			same time then one could refresh the cache while the other one is using it.
+			If refreshing is not going to be used or only used when the message flow has been stopped then the 
+			BEGIN ATOMIC statement END; can be moved to just before the start of part 2. This is to make sure
+			that the initialization of the cache is single threaded. The ATOMIC block is given a label called 
+			"ENVVALUES". It is important to label ATOMIC blocks because all ATOMIC blocks with in a message flow, 
+			with the same label, share the same lock even if they are in different compute nodes.
+		*/
+		
+		/*
+			Copying the database table into memory.
+			---------------------------------------
+			The database is only read if the CacheENVVTable.valid field is set to null.
+			This happens at initialization time when the flow is run for the first time
+			after start or recycling of the execution group.			   
+		*/		
+				
+		ENVVALUES : BEGIN ATOMIC -- beginning of atomic block. Processing is single threaded until the END; is reached
+			IF envRef.valid IS NULL THEN
+				
+				SET brokerName = SQL.BrokerName;
+				SET flowName = SQL.MessageFlowLabel;
+				SET exeGroupName = SQL.ExecutionGroupLabel;	   
+		
+		/*
+			Extract Environment.Variables from Database into temp space
+			SQL is shown as comments below to clarify the variables used in the SELECT. 
+		*/		
+		
+				--SET sql = 'SELECT DATA_KEY, DATA_VALUE
+				--			FROM ENVIRONMENT_VALUES
+				--			WHERE SCOPE = 'ALL'
+				--			AND DATA_KEY NOT IN
+   				--				(SELECT DATA_KEY 
+   				--				FROM ENVIRONMENT_VALUES
+   				--				WHERE SCOPE = 'BROKER'
+   				--				AND SCOPE_VALUE = <broker name>
+   				--				UNION ALL
+   				--				SELECT DATA_KEY 
+   				--				FROM ENVIRONMENT_VALUES
+   				--				WHERE SCOPE = 'EXECUTION_GROUP' 
+   				--				AND SCOPE_VALUE= <execution group name>
+   				--				UNION ALL
+   				--				SELECT DATA_KEY 
+   				--				FROM ENVIRONMENT_VALUES
+   				--				WHERE SCOPE = 'MSGFLOW' 
+   				--				AND SCOPE_VALUE= <flow name>)				
+				--			UNION ALL
+				--			SELECT DATA_KEY, DATA_VALUE
+				--			FROM ENVIRONMENT_VALUES
+				--			WHERE SCOPE = 'BROKER' 
+				--			AND SCOPE_VALUE = <broker name>
+				--			AND DATA_KEY NOT IN
+   				--				(SELECT DATA_KEY 
+   				--				FROM ENVIRONMENT_VALUES
+   				--				WHERE SCOPE = 'EXECUTION_GROUP' 
+   				--				AND SCOPE_VALUE= <execution group name>
+   				--				UNION ALL
+   				--				SELECT DATA_KEY 
+   				--				FROM ENVIRONMENT_VALUES 
+   				--				WHERE SCOPE = 'MSGFLOW'
+    			--				AND SCOPE_VALUE = <flow name>)
+    			--			UNION ALL
+				--			SELECT DATA_KEY, DATA_VALUE
+				--			FROM ENVIRONMENT_VALUES
+				--			WHERE SCOPE = 'EXECUTION_GROUP' 
+				--			AND SCOPE_VALUE = <execution group name>
+				--			AND DATA_KEY NOT IN
+   				--				(SELECT DATA_KEY 
+   				--				FROM ENVIRONMENT_VALUES 
+   				--				WHERE SCOPE = 'MSGFLOW'
+    			--				AND SCOPE_VALUE = <flow name>)
+				--			UNION ALL
+				--			SELECT DATA_KEY, DATA_VALUE
+				--			FROM ENVIRONMENT_VALUES
+				--			WHERE SCOPE = 'MSGFLOW' 
+				--			AND SCOPE_VALUE = <flow name>';		
+						
+				SET sql = 	'SELECT DATA_KEY, DATA_VALUE
+							FROM EAI.ENVIRONMENT_VALUES
+							WHERE SCOPE = ?
+							AND DATA_KEY NOT IN
+   								(SELECT DATA_KEY 
+   								FROM EAI.ENVIRONMENT_VALUES
+   								WHERE SCOPE = ?
+   								AND SCOPE_VALUE = ?
+   								UNION ALL
+   								SELECT DATA_KEY 
+   								FROM EAI.ENVIRONMENT_VALUES
+   								WHERE SCOPE = ? 
+   								AND SCOPE_VALUE= ?
+   								UNION ALL
+   								SELECT DATA_KEY 
+   								FROM EAI.ENVIRONMENT_VALUES
+   								WHERE SCOPE = ? 
+   								AND SCOPE_VALUE= ?)				
+							UNION ALL
+							SELECT DATA_KEY, DATA_VALUE
+							FROM EAI.ENVIRONMENT_VALUES
+							WHERE SCOPE = ? 
+							AND SCOPE_VALUE = ?
+							AND DATA_KEY NOT IN
+   								(SELECT DATA_KEY 
+   								FROM EAI.ENVIRONMENT_VALUES
+   								WHERE SCOPE = ? 
+   								AND SCOPE_VALUE= ?
+   								UNION ALL
+   								SELECT DATA_KEY 
+   								FROM EAI.ENVIRONMENT_VALUES 
+   								WHERE SCOPE = ?
+    							AND SCOPE_VALUE = ?)
+    						UNION ALL
+							SELECT DATA_KEY, DATA_VALUE
+							FROM EAI.ENVIRONMENT_VALUES
+							WHERE SCOPE = ? 
+							AND SCOPE_VALUE = ?
+							AND DATA_KEY NOT IN
+   								(SELECT DATA_KEY 
+   								FROM EAI.ENVIRONMENT_VALUES 
+   								WHERE SCOPE = ?
+    							AND SCOPE_VALUE = ?)
+							UNION ALL
+							SELECT DATA_KEY, DATA_VALUE
+							FROM EAI.ENVIRONMENT_VALUES
+							WHERE SCOPE = ? 
+							AND SCOPE_VALUE = ?';
+				
+			/*
+				Procedure cDatabaseRead requires a list of values to replace the ?'s in the SQL
+			*/			
+				SET DB_IN_PARAMS = Null;
+				CREATE FIELD oleRef.ENVIRONMENT_VALUES As DB_IN_PARAMS;
+		
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_ALL' 	
+					VALUE 'ALL';
+					
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_BROKER1' 		
+					VALUE 'BROKER';	
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'BROKER_NAME1' 		
+					VALUE brokerName;
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_EXEGROUP1' 		
+					VALUE 'EXECUTION_GROUP';
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'EXE_GROUP1' 		
+					VALUE exeGroupName;
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_MSGFLOW1' 		
+					VALUE 'MSGFLOW';	
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'MSGFLOW1' 		
+					VALUE flowName;
+					
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_BROKER2' 		
+					VALUE 'BROKER';	
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'BROKER_NAME2' 		
+					VALUE brokerName;
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_EXEGROUP2' 		
+					VALUE 'EXECUTION_GROUP';
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'EXE_GROUP2' 		
+					VALUE exeGroupName;
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_MSGFLOW2' 		
+					VALUE 'MSGFLOW';	
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'MSGFLOW2' 		
+					VALUE flowName;
+					
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_EXEGROUP3' 		
+					VALUE 'EXECUTION_GROUP';
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'EXE_GROUP3' 		
+					VALUE exeGroupName;
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_MSGFLOW3' 		
+					VALUE 'MSGFLOW';	
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'MSGFLOW3' 		
+					VALUE flowName;
+					
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'SCOPE_MSGFLOW4' 		
+					VALUE 'MSGFLOW';	
+				CREATE LASTCHILD OF DB_IN_PARAMS NAME 'MSGFLOW4' 		
+					VALUE flowName;	
+					
+				CALL cDatabaseRead(sql, False, 'EAI:000707', DB_IN_PARAMS, DB_OUT_PARAMS, 'ENVIRONMENT_VALUES');
+		  
+		        /*
+					From a structure of DB_OUT_PARAMS
+											ENVIRONMENT_VALUES
+												DATA_KEY = AAA
+												DATA_VALUE = BBBBB
+											ENVIRONMENT_VALUES
+												DATA_KEY = C
+												DATA_VALUE = DD  ....
+					Create a cached structure of
+										CachedEnvValues
+											AAA = BBBBB
+											C = DD ....
+											valid = 'Y'												
+				*/
+				
+				SET maxRows = CARDINALITY(DB_OUT_PARAMS.ENVIRONMENT_VALUES[]);
+				
+				CREATE FIRSTCHILD OF envRef NAME 'valid' VALUE 'Y';
+						
+				IF maxRows > 0 THEN
+					SET valueIndex = 1;
+					WHILE valueIndex <= maxRows DO
+						CREATE LASTCHILD OF envRef NAME 
+							TRIM(DB_OUT_PARAMS.ENVIRONMENT_VALUES[valueIndex].DATA_KEY) 
+							VALUE TRIM(DB_OUT_PARAMS.ENVIRONMENT_VALUES[valueIndex].DATA_VALUE);
+						SET valueIndex = valueIndex + 1;
+					END WHILE;
+					
+				END IF; 
+				
+				-- Delete work fields
+				SET DB_IN_PARAMS = Null;
+				SET DB_OUT_PARAMS = Null;
+				
+			END IF;
+			
+		END ENVVALUES ; -- end of the ENVVALUES atomic block
+		
+		/*
+		    As the compute mode is set to LocalEnvironment, the Input LocalEnvironment
+		    must be copied to the OutputLocalEnvironment. Otherwise the current content 
+		    of the environment will be lost. 
+		*/
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		RETURN TRUE;
+	END;
+
+END MODULE;

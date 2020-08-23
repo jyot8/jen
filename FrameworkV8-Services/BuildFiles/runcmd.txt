@@ -1,0 +1,50 @@
+
+@echo off
+REM ******* Configuration settings *******
+REM - individual machine path information is now set in c:\wbi8-set-env.bat <<<<<<<<<<<<<<< NOTE THE 8 in this NEW VERSION
+REM   Copy the wbi-set-env.bat TEMPLATE file from the Cross-project code folder in
+REM   cvs to your c: drive and edit edit to set the correct paths on your workstation
+
+
+
+
+REM ****** Set project information ******
+SET RELEASE=9
+SET DNAME=FrameworkV8-Services
+
+
+SET NUM_BARS=3
+
+SET PROJECT_1=Error-Handler
+SET CONTENT_LIST_FLOWS_1=BuildFlowsList-Error-Handler.txt
+SET CONTENT_LIST_MSETS_1=
+
+SET PROJECT_2=Service-Flows
+SET CONTENT_LIST_FLOWS_2=BuildFlowsList-Service-Flows.txt
+SET CONTENT_LIST_MSETS_2=
+
+SET PROJECT_3=Warehouse
+SET CONTENT_LIST_FLOWS_3=BuildFlowsList-Warehouse.txt
+SET CONTENT_LIST_MSETS_3=
+
+
+REM IF no message sets are required, simply set the list to blank - eg. SET CONTENT_LIST_MSETS_1=
+
+
+
+
+
+
+
+
+
+
+
+
+REM ----------- No need to edit below this line ------------
+
+REM Call the common code to build a project
+cd ..\..\"Cross-project code\BuildFiles"
+.\build-bars-common.bat
+
+pause

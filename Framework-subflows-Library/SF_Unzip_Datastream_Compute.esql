@@ -1,0 +1,15 @@
+
+
+CREATE COMPUTE MODULE SF_Unzip_Datastream_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- This is a Placeholder !!
+		SET OutputRoot = InputRoot;
+		
+		-- Java GZIP library:
+		-- InflaterInputStream: 	This is a base class for decompressing data.
+		-- ZipInputStream: 			This subclass of InflaterInputStream can decompress Zip format data.
+		
+		
+	END;
+END MODULE;

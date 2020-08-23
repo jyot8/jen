@@ -1,0 +1,31 @@
+-- DO NOT MODIFY----
+-- Version history---
+--$MQSI $Log: SF_MQ_Input_Compute.esql,v $
+--$MQSI Revision 1.2  2014/05/20 09:04:59  panu.hyrylainen
+--$MQSI version information added
+--$MQSI
+--Version history end---
+
+CREATE COMPUTE MODULE SF_MQ_Input_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+----------------------------------------------------------------------------------------------
+-------------------------------- DO NOT MODIFY	----------------------------------------------	
+DECLARE SF_MQ_Input_Compute_esql CHARACTER '$MQSI SF_MQ_Input_Compute_esql = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_MQ_Input_Compute.esql,v 1.2 2014/05/20 09:04:59 panu.hyrylainen Exp $ MQSI$';      
+------------------IT WILL UPDATED WHEN COMMIT/CHECK IN TO THE CVS-----------------------------
+----------------------------------------------------------------------------------------------
+
+		-- This compute node is run in Local Environment mode to avoid performace issues copying data
+		-- (it is not necessary to copy the output root 
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		-- So that subsequent sub-flows (eg. output reply) know what type of request this is:
+		SET Environment.EAIframework.Context.InputType = 'MQ';
+		
+		-- Optimisation, as MQ context is the default we will hold data in, 
+		-- there is no need to keep a copy of the context as it is in the main Root
+		
+		-- SET Environment.EAIframework.Context.OriginalRoot = InputRoot;
+		
+	END;
+END MODULE;

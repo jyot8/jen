@@ -1,0 +1,133 @@
+/*******************************************************************************
+ *
+ * Finnair EAI framework
+ *
+********************************************************************************
+*   Flow:      	  Store_Warehouse_Message
+*                      
+*   Description:  Exception Management main processing flow                                                                                  
+*
+*   Change history:
+*   ===============
+*
+*   Ver   Date      Defect No  Author  Module  Descripton
+*   ===   ========  =========  ======  ======  ==============
+------------------------------------------------------------------------------*/
+
+
+
+CREATE COMPUTE MODULE Store_Message_In_Warehouse
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+DECLARE C_MAX_DB_MSG_SIZE			Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion  
+DECLARE C_MAX_DB_EXCEPTION_SIZE		Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion
+DECLARE C_MAX_DB_RFH_USR_SIZE		Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion
+DECLARE C_MAX_DB_RFH_JMS_SIZE		Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion
+
+DECLARE C_MAX_DB_CLOB_SIZE			Constant INTEGER 52428800;	--  ... set an overall limit for data to match DB table = 50 MB 
+
+
+		CALL CopyEntireMessage();
+
+		Declare DB_IN_PARAMS Reference To InputLocalEnvironment; 	-- Used in database write
+		Declare evRef    	 Reference To Environment.Variables;
+		Declare enRef    	 Reference To Environment.Variables; 
+		Declare inRFHRef 	 Reference To InputRoot.MQRFH2;  		-- RFH header USR folder
+		Declare oleRef		 Reference To OutputLocalEnvironment; 	-- used in db interactions
+		Declare myRef 		 Reference To OutputRoot;
+
+		Declare SQL_STATEMENT Char ''; -- Insert sql used in passthru
+		Declare BITMessage Char;
+		Declare BITMessageT Char;
+		Declare msgTrunc Char 'N';
+		DECLARE now TIMESTAMP CURRENT_TIMESTAMP;
+		
+		-- Map message data
+		Set BITMessage  = CAST(InputRoot.BLOB.BLOB AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);		
+		
+		IF LENGTH(BITMessage) > C_MAX_DB_MSG_SIZE THEN
+			Set BITMessageT = Substring(BITMessage From 1 for C_MAX_DB_MSG_SIZE);
+			Set msgTrunc = 'Y';
+		END IF;		
+
+
+			Create Field oleRef.MESSAGE_WAREHOUSE.INPUT As DB_IN_PARAMS;
+	
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_MESSAGE_TRUNC' 	Value msgTrunc;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'MQ_MSG_ID' 			Value InputRoot.MQMD.MsgId;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'CORREL_ID'			Value InputRoot.MQMD.CorrelId;	
+			-- the Replay queue is either the input queue for copies of input messages
+			-- or the destination output queue where this is a copy of the output message 	
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_QUEUE' 		Value InputRoot.MQMD.ReplyToQMgr;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'MESSAGE' 			Value COALESCE(BITMessageT,BITMessage) ;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_COUNT' 		Value 0;
+			-- the queue name passed in ApplOriginData is always the input queue name 
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'QUEUE_NAME' 			Value InputRoot.MQMD.ReplyToQ;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FORMAT'			 	Value InputRoot.MQMD.Format;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 				Value Coalesce(evRef.status, '0');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_TSTMP' 	Value now;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'PUT_DATE'	 		Value COALESCE(InputRoot.MQRFH2.usr.MQMDPutDate, Substring(Cast(InputRoot.MQMD.PutDate As Char) From 7 For 10));
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'PUT_TIME'	 		Value COALESCE(InputRoot.MQRFH2.usr.MQMDPutTime, Substring(Cast(InputRoot.MQMD.PutTime As Char) From 10 For 12));
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'USER_ID'	 			Value InputRoot.MQMD.UserIdentifier;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'OWNER'				Value InputRoot.MQMD.ApplIdentityData;
+	
+			Set SQL_STATEMENT = 'Insert into EAI.MESSAGE_WAREHOUSE' ||
+					            '(IS_MESSAGE_TRUNC, MQ_MSG_ID, 	 	 CORREL_ID,
+								  REPLAY_QUEUE, 	MESSAGE,	 		REPLAY_COUNT, 		
+								  QUEUE_NAME,      	
+								  FORMAT,  		    STATUS,			    EXCEPTION_TSTMP, PUT_DATE,    	    PUT_TIME,
+								  USER_ID,			OWNER)
+					             Values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+		
+			CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00158', DB_IN_PARAMS);
+			
+		--------------------------------------------------------------
+		-- Retrieve the warehouse id for the log message just inserted
+		--------------------------------------------------------------
+		SET Environment.Variables.ExceptionId = THE (SELECT ITEM E.WAREHOUSE_ID FROM Database.EAI.MESSAGE_WAREHOUSE AS E
+														WHERE E.EXCEPTION_TSTMP = now AND
+														E.MQ_MSG_ID = InputRoot.MQMD.MsgId);
+		IF (SQLCODE <> 0) THEN
+			THROW USER EXCEPTION VALUES(
+				'ESB',
+				'FAILED: Data exception',
+				'EAI:00111',
+				'Warehouse',
+				'Unable to ascertain warehouse_id in warehouse processing',
+				SQLCODE,SQLERRORTEXT,SQLSTATE,SQLNATIVEERROR);
+		END IF;			
+			
+			
+		
+		-- If Message has been truncated then write the whole thing to the Message Exception CLOB table (shared with exceptions !)
+		IF msgTrunc = 'Y' Then
+
+			Create Field oleRef.MESSAGE_EXCEPTION_CLOB.MSGINPUT As DB_IN_PARAMS;
+
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value 'M';
+			-- Just in case the message is too big for the CLOB table, truncate it to the maximum size.
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_DATA'   Value Substring(BITMessage From 1 for C_MAX_DB_CLOB_SIZE);
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_ID'   Value Environment.Variables.ExceptionId;
+
+			Set SQL_STATEMENT = 'Insert into EAI.MESSAGE_EXCEPTION_CLOB' ||
+				            	'(FIELD_TYPE, FIELD_DATA, EXCEPTION_ID)
+				            	 Values (?,?,?)';
+
+			CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00111', DB_IN_PARAMS);
+
+			-- tidy up
+			DELETE FIELD oleRef.MESSAGE_WAREHOUSE_CLOB.MSGINPUT;
+			SET BITMessage = NULL;
+
+		END IF;
+
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+
+
+END MODULE;

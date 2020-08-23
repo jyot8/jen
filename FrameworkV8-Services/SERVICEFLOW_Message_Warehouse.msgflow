@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmMQInput.msgnode="ComIbmMQInput.msgnode" xmlns:ComIbmMQOutput.msgnode="ComIbmMQOutput.msgnode" xmlns:ComIbmThrow.msgnode="ComIbmThrow.msgnode" xmlns:ComIbmTrace.msgnode="ComIbmTrace.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SERVICEFLOW_Message_Warehouse.msgflow"
+    nsPrefix="SERVICEFLOW_Message_Warehouse.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" key="SERVICEFLOW_Message_Warehouse" bundleName="SERVICEFLOW_Message_Warehouse" pluginId="FrameworkV8-Services"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj16/SERVICEFLOW_Message_Warehouse.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj30/SERVICEFLOW_Message_Warehouse.gif"/>
+    <composition>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="314,134" rotation="TOP_TO_BOTTOM" dataSource="EAI" computeExpression="esql://routine/#Store_Message_In_Warehouse.Main" treatWarningsAsErrors="true" throwExceptionOnDatabaseError="false">
+        <translation xmi:type="utility:ConstantString" string="Store_Message_In_Warehouse"/>
+      </nodes>
+      <nodes xmi:type="ComIbmThrow.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="649,221" rotation="TOP_TO_BOTTOM" messageText="SYS_HARD_FAILURE ERR_Process_Failure_Message">
+        <translation xmi:type="utility:ConstantString" string="Throw"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="584,37" rotation="TOP_TO_BOTTOM" destination="file" filePath="/brokerv8/logs/exception_handling.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo ESB ExceptionHandling ERROR  EAI:Failure to process exception message in flow ERR_Process_Failure_Message. Message will be placed on SYS_HARD_FAILURE queue. Further details in /var/mqsi/log/exception_handling_detail.log Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_ERROR.log"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="588,131" rotation="TOP_TO_BOTTOM" destination="file" filePath="/brokerv8/logs/exception_handling_detail.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo ESB ExceptionHandling ERROR  EAI:Failure to process exception message in flow ERR_Process_Failure_Message. Message will be place on SYS_HARD_FAILURE queue. Further details in /var/mqsi/log/exception_handling_detail.log Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}&#xD;&#xA;&#x9;############ Exception follows&#xD;&#xA;${ExceptionList}&#xD;&#xA;&#x9;############# Message data follows ########&#xD;&#xA;${Root}&#xD;&#xA;&#x9;## End ###">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_detail.log"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="144,37" rotation="TOP_TO_BOTTOM" queueName="SYS_HARD_FAILURE">
+        <translation xmi:type="utility:ConstantString" string="SYS_HARD_FAILURE"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_8" location="371,-6" rotation="TOP_TO_BOTTOM" queueName="EAI.MW" messageDomainProperty="BLOB">
+        <translation xmi:type="utility:ConstantString" string="EAI.MW"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_6" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_1" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer/>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

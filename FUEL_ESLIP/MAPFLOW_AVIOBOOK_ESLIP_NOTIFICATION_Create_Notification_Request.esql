@@ -1,0 +1,88 @@
+
+
+CREATE COMPUTE MODULE MAPFLOW_AVIOBOOK_ESLIP_NOTIFICATION_Create_Notification_Request
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyMessageHeaders();
+		
+		DECLARE aldes,fltnbr,fltDate,fltday,fltmonth,fltyear,full_fltyear,depstn,arrstn,acreg,uplinkData,notifSubject,notifBody CHAR;
+		DECLARE CR CHAR CAST(CAST(X'0D' AS BLOB) AS CHAR CCSID InputRoot.MQMD.CodedCharSetId );
+		DECLARE LF CHAR CAST(CAST(X'0A' AS BLOB) AS CHAR CCSID InputRoot.MQMD.CodedCharSetId );
+		
+		DECLARE inRef REFERENCE TO InputRoot.DFDL.GeneralRowMessage.body.elem1;
+        
+        DECLARE inRef3 REFERENCE TO InputRoot.DFDL.GeneralRowMessage.body[3].elem1;
+		DECLARE inRef4 REFERENCE TO InputRoot.DFDL.GeneralRowMessage.body[4].elem1;
+		DECLARE inRef5 REFERENCE TO InputRoot.DFDL.GeneralRowMessage.body[5].elem1;
+		DECLARE inRef6 REFERENCE TO InputRoot.DFDL.GeneralRowMessage.body[6].elem1;
+		
+		DECLARE totalLength INTEGER;
+	    SET totalLength = LENGTH (inRef5);
+		
+		DECLARE OutfltDate , aldfltnbr CHAR ;
+		SET OutfltDate = SUBSTRING(inRef5 FROM (totalLength - 9) FOR 10);
+		DECLARE utcDate DATE;
+		
+		SET fltday = SUBSTRING(OutfltDate FROM 1 FOR 2);
+		SET fltmonth = SUBSTRING(OutfltDate FROM 4 FOR 2);
+		SET fltyear = SUBSTRING(OutfltDate FROM 7 FOR 4);
+		
+        SET utcDate =  SUBSTRING(OutfltDate FROM 7 FOR 4) || '-' ||
+		               SUBSTRING(OutfltDate FROM 4 FOR 2) || '-' ||  
+			           SUBSTRING(OutfltDate FROM 1 FOR 2) ;
+						    
+        DECLARE oututcDate CHARACTER UPPER (CAST(utcDate AS CHARACTER FORMAT 'ddMMMyy'));
+		 
+		SET aldfltnbr = SUBSTRING(inRef5 BEFORE ' ');
+		SET aldes = SUBSTRING(aldfltnbr FROM 1 FOR 2);
+		SET fltnbr = SUBSTRING(aldfltnbr FROM 3 FOR (LENGTH (aldfltnbr)) );
+		
+		--Proceed only for AY and N7 aldes
+		IF aldes IN ('AY', 'N7') THEN
+			DECLARE aircraftReg CHARACTER REPLACE( inRef3, '-', '');
+			SET notifSubject = inRef4  || ': ' || aldfltnbr || ' ' || oututcDate || ' ' || aircraftReg ;
+			
+			--Subject Line For no flight found in scope
+			DECLARE notifSubject2 CHAR inRef4  || ': ' || oututcDate || ' ' || aircraftReg ;
+			
+	        DECLARE count INTEGER 1;
+	        DECLARE bodyNotification CHARACTER ''; 
+	
+	        FOR refBody AS InputRoot.DFDL.GeneralRowMessage.body[] DO
+		        IF count >= 6 THEN
+		           SET bodyNotification = bodyNotification || REPLACE (refBody.elem1,' :',':') || CR || LF ;
+		        END IF;
+		        IF count IN (8,16,18,19) THEN
+		           SET bodyNotification = bodyNotification || CR || LF;
+		        END IF;
+		        SET count = count + 1;
+	        END FOR;	      
+			
+			SET notifBody = bodyNotification ;
+			--Store required info in Environment
+			SET Environment.data.aldes  	  = aldes;
+			SET Environment.data.fltnbr 	  = fltnbr;
+			SET Environment.data.fltDate	  = utcDate ;           --fltday ||' '|| fltmonth ||' '|| fltyear;
+			SET Environment.data.notifSubject = notifSubject;
+			SET Environment.data.notifSubject2 = notifSubject2;
+			SET Environment.data.notifBody	  = notifBody;
+			SET Environment.data.aircraftReg  = aircraftReg;
+			
+			RETURN TRUE;
+		END IF;
+		RETURN FALSE;
+		
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	
+END MODULE;

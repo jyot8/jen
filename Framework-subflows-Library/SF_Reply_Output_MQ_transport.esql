@@ -1,0 +1,10 @@
+
+
+CREATE FILTER MODULE SF_Reply_Output_MQ_transport
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Use the input context to check if the current request is MQ or HTTP based
+		RETURN (Environment.EAIframework.Context.InputType = 'MQ');
+	END;
+
+END MODULE;

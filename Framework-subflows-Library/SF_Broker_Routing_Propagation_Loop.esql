@@ -1,0 +1,76 @@
+
+
+CREATE COMPUTE MODULE SF_Broker_Routing_Propagation_Loop
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		-- Establish correct context, but retain compatibility with v6 frmaework for MQ mappings
+		IF COALESCE(Environment.EAIframework.Context.InputType,'MQ') <> 'MQ' THEN 
+			SET OutputRoot = InputRoot;
+			-- BLOB.BLOB is overwritten later
+		END IF;
+		
+		-- Store inputmessage values to Environment
+		IF CARDINALITY(Environment.InputRoot[]) < 1 THEN
+		--IF CARDINALITY(Environment.InputMessage[]) < 1 THEN --fix for propagate all the header information - PanuH
+			
+			Set Environment.InputRoot = InputRoot;
+			/*  fix for propagate all the header information - PanuH
+			SET Environment.InputMessage = InputRoot.BLOB.BLOB;
+			SET Environment.InputProperties = InputRoot.Properties;
+			SET Environment.InputMQMD = InputRoot.MQMD;
+			SET Environment.InputMQMD.Format = InputRoot.MQMD.Format;
+			SET Environment.InputMQMD.Persistence = InputRoot.MQMD.Persistence;
+			SET Environment.InputMQMD.ReplyToQ = InputRoot.MQMD.ReplyToQ;
+			SET Environment.InputMQMD.ReplyToQMgr = InputRoot.MQMD.ReplyToQMgr;
+			SET Environment.InputMQMD.MsgId = InputRoot.MQMD.MsgId;
+			*/
+		END IF;
+		
+		-- Construct destination label for each unique message mapping specifier
+		-- and propagate processing to corresponding mapflow
+		-- behind it to perform actual mapping.
+		DECLARE I 		INTEGER;
+		DECLARE C 		INTEGER;
+		DECLARE CPOS 	INTEGER;
+		DECLARE PROPAGATELIST CHARACTER;
+		
+		SET I = 1;
+		SET C = CARDINALITY(Environment.Routing[]);
+		SET PROPAGATELIST = '';
+		
+		WHILE I <= C DO
+			-- Search, is this message mapping specifier already propagated
+			SET CPOS = POSITION('*' || trim(Environment.Routing[I].MESSAGE_MAPPING_SPECIFIER) || '*' IN PROPAGATELIST);
+			IF CPOS = 0 THEN
+				IF COALESCE(Environment.EAIframework.Context.InputType,'MQ') = 'MQ' THEN 
+					-- Set message contents from Environment
+					
+					Set OutputRoot = Environment.InputRoot;
+					/* fix for propagate all the header information - PanuH
+					SET OutputRoot.Properties = Environment.InputProperties;
+					SET OutputRoot.MQMD = Environment.InputMQMD;
+					SET OutputRoot.MQMD.Format= Environment.InputMQMD.Format;
+					SET OutputRoot.MQMD.Persistence = Environment.InputMQMD.Persistence;
+					SET OutputRoot.MQMD.ReplyToQ = Environment.InputMQMD.ReplyToQ;
+					SET OutputRoot.MQMD.ReplyToQMgr = Environment.InputMQMD.ReplyToQMgr;
+					SET OutputRoot.MQMD.MsgId = Environment.InputMQMD.MsgId;
+					SET OutputRoot.BLOB.BLOB = Environment.InputMessage;
+					*/
+				END IF;
+				SET OutputLocalEnvironment.Destination.RouterList.DestinationData[1].labelname = trim(Environment.Routing[I].MESSAGE_MAPPING_SPECIFIER);
+				
+				-- Store used message mapping specifier to string, where we can search, if this specifier is already propagated
+				SET PROPAGATELIST = PROPAGATELIST || '*' || trim(Environment.Routing[I].MESSAGE_MAPPING_SPECIFIER) || '*';
+				SET Environment.LoggingIndex = I;
+				SET Environment.MQOUTPUT_MAPPING_SPECIFIER = trim(Environment.Routing[I].MESSAGE_MAPPING_SPECIFIER);
+				PROPAGATE FINALIZE NONE DELETE NONE;
+			END IF;
+			SET I = I + 1;
+		END WHILE;
+		RETURN FALSE;  		
+	END;
+
+END MODULE;

@@ -1,0 +1,10 @@
+
+
+CREATE FILTER MODULE SF_Handle_Exception_Reply_Expected
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- True if there is a replyTo queue defined in the request message
+		RETURN (Root.MQMD.ReplyToQ <> '');
+	END;
+
+END MODULE;

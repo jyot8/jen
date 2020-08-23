@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmFilter.msgnode="ComIbmFilter.msgnode" xmlns:ComIbmLabel.msgnode="ComIbmLabel.msgnode" xmlns:ComIbmRouteToLabel.msgnode="ComIbmRouteToLabel.msgnode" xmlns:SF_Broker_Routing.subflow="SF_Broker_Routing.subflow" xmlns:SF_MQ_Input.subflow="SF_MQ_Input.subflow" xmlns:SF_MQ_Output.subflow="SF_MQ_Output.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SF_MQ_Routed_Passthru.subflow"
+    nsPrefix="SF_MQ_Routed_Passthru.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.RoutedQueueName" name="RoutedQueueName" lowerBound="1" defaultValueLiteral="set_queue_name">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.labelName" name="labelName" lowerBound="1" defaultValueLiteral="NONE">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="SF_MQ_Routed_Passthru" bundleName="SF_MQ_Routed_Passthru" pluginId="Framework-subflows-Library"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj16/SF_MQ_Routed_Passthru.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj30/SF_MQ_Routed_Passthru.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="Full integration where no transformation required"/>
+    <longDescription xmi:type="utility:ConstantString" string="V9.005 Finnair Framework for IIB 02/04/2014"/>
+    <version xmi:type="utility:ConstantString" string="V9.005 Finnair Framework for IIB 02/04/2014"/>
+    <composition>
+      <nodes xmi:type="SF_MQ_Input.subflow:FCMComposite_1" xmi:id="FCMComposite_1_1" location="11,105">
+        <translation xmi:type="utility:ConstantString" string="SF_MQ_Input - Queue name promoted"/>
+      </nodes>
+      <nodes xmi:type="SF_Broker_Routing.subflow:FCMComposite_1" xmi:id="FCMComposite_1_2" location="226,105">
+        <translation xmi:type="utility:ConstantString" string="SF_Broker_Routing - route by queue name"/>
+      </nodes>
+      <nodes xmi:type="SF_MQ_Output.subflow:FCMComposite_1" xmi:id="FCMComposite_1_3" location="700,109">
+        <translation xmi:type="utility:ConstantString" string="SF_MQ_Output"/>
+      </nodes>
+      <nodes xmi:type="ComIbmLabel.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="617,160">
+        <translation xmi:type="utility:ConstantString" string="Label: promoted"/>
+      </nodes>
+      <nodes xmi:type="ComIbmRouteToLabel.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_5" location="518,159">
+        <translation xmi:type="utility:ConstantString" string="Route To Label"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFilter.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="460,105" filterExpression="esql://routine/#SF_MQ_Routed_Passthru_Any_Label.Main">
+        <translation xmi:type="utility:ConstantString" string="Any_Label"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output" location="92,169">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Optional_Output_Copy" bundleName="SF_MQ_Routed_Passthru" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_5" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.true" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.false" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_6" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.mq.MQQueueNameEditor" configurable="true" describedAttribute="Property.RoutedQueueName">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.RoutedQueueName" bundleName="SF_MQ_Routed_Passthru" pluginId="Framework-subflows-Library"/>
+        <propertyDescriptor groupName="Group.Basic" describedAttribute="Property.labelName">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.labelName" bundleName="ComIbmLabel" pluginId="com.ibm.etools.mft.ibmnodes"/>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.RoutedQueueName" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="SF_MQ_Input.subflow#Property.QueueName"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.labelName" overriddenNodes="FCMComposite_1_4">
+      <overriddenAttribute href="ComIbmLabel.msgnode#Property.labelName"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

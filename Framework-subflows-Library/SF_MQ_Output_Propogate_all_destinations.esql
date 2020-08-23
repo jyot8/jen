@@ -1,0 +1,63 @@
+
+
+CREATE COMPUTE MODULE SF_MQ_Output_Propogate_all_destinations
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		Set OutputLocalEnvironment = InputLocalEnvironment;
+
+		-- Check Environment.LoggingIndex, default 1.
+		IF (coalesce(Environment.LoggingIndex, 0) = 0) THEN
+		   SET Environment.LoggingIndex = 1;
+		END IF;
+
+		DECLARE I INTEGER;
+		DECLARE IDX INTEGER;
+		DECLARE R_COUNT INTEGER;
+		DECLARE MAPPING_SPECIFIER CHARACTER;
+
+		SET MAPPING_SPECIFIER = '';
+		SET I = Environment.LoggingIndex;
+		--
+		IF (Environment.Routing[I].HOLD = 0) THEN
+			
+			IF CARDINALITY(Environment.MQOUTPUT_MAPPING_SPECIFIER[]) > 0 THEN
+				SET MAPPING_SPECIFIER = TRIM(Environment.MQOUTPUT_MAPPING_SPECIFIER);
+			END IF;
+
+			IF MAPPING_SPECIFIER <> '' THEN -- Message mapping specifier was given in the Environment
+				-- Propagate in loop for all mappings with same mapping specifier
+				SET R_COUNT = CARDINALITY(Environment.Routing[]);
+				SET IDX = 1;
+				WHILE(IDX <= R_COUNT) DO
+					IF TRIM(Environment.Routing[IDX].MESSAGE_MAPPING_SPECIFIER) = MAPPING_SPECIFIER THEN
+						SET OutputRoot = InputRoot;
+						SET Environment.LoggingIndex = IDX;
+						SET OutputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName = trim(Environment.Routing[IDX].QUEUE);
+						SET OutputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueManagerName = trim(Environment.Routing[IDX].QUEUE_MANAGER);
+						
+						PROPAGATE FINALIZE NONE DELETE NONE;
+					END IF;
+					SET IDX = IDX +1;
+				END WHILE; 
+				
+			ELSE -- Messsage mapping specifier was not given in the Environment
+				SET OutputRoot = InputRoot;	
+				SET OutputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName = trim(Environment.Routing[I].QUEUE);
+				SET OutputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueManagerName = trim(Environment.Routing[I].QUEUE_MANAGER);
+				
+				PROPAGATE FINALIZE NONE DELETE NONE;
+			END IF;
+
+		ELSE -- Hold case
+			SET OutputRoot = InputRoot;
+			SET OutputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName = trim(Environment.Routing[I].HOLD_QUEUE);
+			SET OutputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueManagerName = trim(Environment.Routing[I].MAPPING_QUEUE_MANAGER);
+			PROPAGATE FINALIZE NONE DELETE NONE;
+		END IF;
+
+		-- SET Environment.MQOUTPUT_MAPPING_SPECIFIER = '';
+
+		RETURN FALSE;
+	END;
+END MODULE;

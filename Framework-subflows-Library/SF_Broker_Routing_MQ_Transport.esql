@@ -1,0 +1,9 @@
+
+
+CREATE FILTER MODULE SF_Broker_Routing_MQ_Transport
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		RETURN (COALESCE(Environment.EAIframework.Context.InputType,'MQ') = 'MQ');
+	END;
+
+END MODULE;

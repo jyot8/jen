@@ -1,0 +1,215 @@
+
+-- Routing type is an (option) property of the subflow
+DECLARE RoutingType EXTERNAL CHARACTER NULL; 
+
+
+CREATE COMPUTE MODULE SF_Broker_Routing_SetEnvironment
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE thisIntegrationType CHARACTER;
+		
+		-- Check if Cached values have been initialised, for this FLOW
+		DECLARE saveTime TIMESTAMP;
+		DECLARE cacheTime, cachedLimit	INTERVAL;
+		
+		SET cachedLimit = INTERVAL '60' MINUTE;	-- This could be set to a few minutes to avoid having to reload after routing changes
+		
+		CALL CopyEntireMessage();
+		SET  OutputLocalEnvironment = InputLocalEnvironment;
+
+		DECLARE cacheVal REFERENCE TO Environment;		-- temp ref, just to create the reference, it is moved below
+		CALL getCacheValues( cacheVal );				-- point to shared variables area
+		
+		IF cacheVal.EAIenvironment.Initialised IS NULL THEN 
+			
+			-- First flow execution - we can set these here, or for database or other environment source 
+			-- Determine what environment we are running in 
+			DECLARE thisBroker CHARACTER;
+			SET thisBroker = BrokerName;
+			
+			IF POSITION( 'PRD' IN thisBroker ) > 0 
+				THEN 
+				-- We are running in PRODUCTION 
+				SET cacheVal.EAIenvironment	= 'Production';
+				-- set any other production settings
+				
+			ELSE 
+				-- These are the settings for TEST
+				SET cacheVal.EAIenvironment	= 'Test';
+				
+			END IF;
+			
+			SET cacheVal.EAIenvironment.Initialised = TRUE;
+		END IF;
+
+		-- Fetch all the routings for the specified integration
+		-- variable "thisIntegrationType" needs to be set up
+		-- this subflow allows it to be set in the following priority order:
+		--	1. set it up in Environment before this subflow is called
+		--	2. set it as a property of this subflow
+		-- 	3. default to the input queue name
+		
+		SET thisIntegrationType = COALESCE( 
+				Environment.IntegrationType, 		-- if set up by a compute node first
+				RoutingType, 						-- if set as a user property on this subflow node
+				TRIM(InputRoot.MQMD.SourceQueue));
+		-- For compatibility with old code, set the environment
+		-- as setting blank in the property returns a blank not NULL, check for this 
+		IF thisIntegrationType = '' THEN
+			SET thisIntegrationType = TRIM(InputRoot.MQMD.SourceQueue);
+		END IF;
+
+		IF COALESCE(thisIntegrationType,'') = '' THEN
+			-- It is still possible to have a blank or undefined input (eg. http or soap)
+			-- so if nothing has been set, we can not continue
+				THROW USER EXCEPTION VALUES(
+				'EAI',
+				'Failed - Initialisation of environment for EAI flow',
+				'EAI:010003',
+				'Unable to find any Integration Type to use as a key (no input queue or SOAP action or defined property)' );
+		END IF;
+		
+		SET Environment.Keyvalues.Integration.MESSAGE_TYPE_INTEGRATION = thisIntegrationType;
+		
+		-- Check to see if this is a special trigger message to reset the routings after a change
+		IF LENGTH(BITSTREAM(InputRoot.BLOB.BLOB)) < 15 THEN
+			
+			DECLARE physicalEnc, physicalCCSID INTEGER;
+			DECLARE BITMessage CHARACTER;
+			DECLARE old_time TIMESTAMP;
+			
+			SET physicalEnc = COALESCE( InputRoot.Properties.Encoding, 273 );
+			SET physicalCCSID = COALESCE( InputRoot.Properties.CodedCharSetId, 819 );
+			SET BITMessage  = CAST( InputRoot.BLOB.BLOB AS CHAR CCSID physicalCCSID ENCODING physicalEnc);
+			
+			IF (BITMessage = '#EAI#reload') THEN
+				-- invalidate the cache so that it is reloaded next message
+				SET old_time = TIMESTAMP '2013-10-01 06:00:00.000000';
+				SET cacheVal.EAIenvironment.{thisIntegrationType}.cachedTime = old_time;
+				-- and return without propagating this trigger message
+				RETURN FALSE;
+			END IF;
+		END IF;
+							
+		-- Check if we need to load the routings from the database, or if the cache is valid
+		SET saveTime = COALESCE( cacheVal.EAIenvironment.{thisIntegrationType}.cachedTime, TIMESTAMP '2013-10-01 06:00:00.000000' );
+		SET cacheTime = (CURRENT_TIMESTAMP - saveTime) MINUTE;
+		IF (cacheVal.EAIenvironment.{thisIntegrationType}.Initialised IS NOT NULL) AND (cacheTime < cachedLimit) THEN 
+		-- the default session timeout is about 1 hour but can be forced by reload or a reload message
+
+			-- Backwards compatibility with flows coded for v6 - set the environment from the cached row
+			SET Environment.Routing[]= 			cacheVal.EAIenvironment.{thisIntegrationType}.Routing[];
+			SET Environment.Group_parameters[]=	cacheVal.EAIenvironment.{thisIntegrationType}.Group_parameters[];
+
+			RETURN TRUE;	-- proceed to re-use the existing session
+
+		ELSE 
+			
+			-- We will attempt to load or re-load the cache from the database
+			SET cacheVal.EAIenvironment.{thisIntegrationType}.Routing[] = 
+			(
+			SELECT
+				V.SENDER_QUALIFIER_INTEGRATION,
+				V.SENDER_CODE_INTEGRATION,
+				V.RECEIVER_QUALIFIER_INTEGRATION,
+				V.RECEIVER_CODE_INTEGRATION,
+				V.MESSAGE_TYPE_INTEGRATION,
+				V.MESSAGE_VERSION_INTEGRATION,
+				V.COMPANY_CODE_INTEGRATION,
+				V.LOG_LEVEL_INTEGRATION,
+				V.INPUT_TRACE_INTEGRATION,
+				V.KEY_INTEGRATION,
+				V.SENDER_QUALIFIER_ROUTING,
+				V.SENDER_CODE_ROUTING,
+				V.RECEIVER_QUALIFIER_ROUTING,
+				V.RECEIVER_CODE_ROUTING,
+				V.MESSAGE_TYPE_ROUTING,
+				V.MESSAGE_VERSION_ROUTING,
+				V.COMPANY_CODE_ROUTING,
+				V.LOG_LEVEL_ROUTING,
+   		   		V.KEY_ROUTING,
+   		   		V.APP_SPECIFIC1,
+   		   		V.APP_SPECIFIC2,
+   		   		V.APP_SPECIFIC3,
+   		   		V.APP_SPECIFIC4,
+				V.MESSAGE_MAPPING_SPECIFIER,
+			    V.HOLD ,
+			    V.MAPPING_QUEUE_MANAGER ,
+			    V.HOLD_QUEUE ,
+				V.QUEUE_MANAGER,
+				V.QUEUE,
+   		        V.REPLY_QUEUE,
+				V.START_DATE,
+				V.END_DATE
+			FROM Database.EAI.V_ROUTING AS V
+			WHERE
+				V.MESSAGE_TYPE_INTEGRATION  = thisIntegrationType and
+				CURRENT_DATE BETWEEN V.START_DATE AND V.END_DATE
+			);
+		
+			-- Need to check for errors here as we deliberately DO NOT throw exception on database error
+			DECLARE noRowsRef REFERENCE TO Environment;
+			-- Check for non-zero SQLCODE or no rows found
+			MOVE noRowsRef To  cacheVal.EAIenvironment.{thisIntegrationType}.Routing[1];
+			IF (SQLCODE <> 0) AND (LastMove(noRowsRef) = FALSE) THEN
+				-- No routing already cached and we have a database error, so we can not continue
+				THROW USER EXCEPTION VALUES(
+				'EAI',
+				'Failed - Initialisation of environment for EAI flow',
+				'EAI:010001',
+				'Unable to cache routings from EAI database, sql error: ' || CAST( SQLCODE AS CHARACTER) );
+			
+			ELSEIF (LastMove(noRowsRef) = FALSE ) THEN
+				-- No error, but no defined routing, so we have a message we dont know how to handle
+				THROW USER EXCEPTION VALUES(
+				'EAI',
+				'Failed - Initialisation of environment for EAI flow',
+				'EAI:010002',
+				'Unable to find any routing information for ' || thisIntegrationType );
+			END IF;
+		
+			SET cacheVal.EAIenvironment.{thisIntegrationType}.cachedTime = CURRENT_TIMESTAMP;
+			SET cacheVal.EAIenvironment.{thisIntegrationType}.Initialised = TRUE;
+		
+			-- Fetch all possible group parameter rows for this specific integration
+			SET Environment.Group_parameters[] = 
+			(
+			SELECT
+				T.PARAMETER_NAME,
+				T.PARAMETER_VALUE
+			FROM Database.EAI.GROUP_PARAMETERS AS T
+			WHERE
+				T.KEY_INTEGRATION = cacheVal.EAIenvironment.{thisIntegrationType}.Routing[1].KEY_INTEGRATION
+			);
+			IF (SQLCODE = 0) THEN
+				SET cacheVal.EAIenvironment.{thisIntegrationType}.Group_parameters = Environment.Group_parameters;
+			END IF;
+		
+		END IF;
+		
+		-- Backwards compatibility with flows coded for v6 - set the environment from the cached row
+		SET Environment.Routing[]= 			cacheVal.EAIenvironment.{thisIntegrationType}.Routing[];
+		SET Environment.Group_parameters[]=	cacheVal.EAIenvironment.{thisIntegrationType}.Group_parameters[];
+		
+		RETURN TRUE;
+	END;
+		
+ 	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
+
+/* =================================================================
+ * Shared Variables Handling, for routing and EAI database caching 
+ * Richard Baker	January 2013
+ * ================================================================= */
+ 
+ DECLARE eaiCachedValues	SHARED ROW;
+ 
+ /* Function to access shared area, called by flows requiring access */
+ 
+ CREATE PROCEDURE getCacheValues( INOUT enVal REFERENCE )
+ BEGIN
+ 	DECLARE refToEnv REFERENCE TO eaiCachedValues;
+ 	MOVE enVal TO refToEnv;
+ END; 

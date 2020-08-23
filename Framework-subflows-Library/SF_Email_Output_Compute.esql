@@ -1,0 +1,19 @@
+
+
+CREATE COMPUTE MODULE SF_Email_Output_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		CALL CopyEntireMessage();
+		
+		-- TODO: set environment for e-mail output from routing data 
+		-- Placeholder 
+		
+		
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

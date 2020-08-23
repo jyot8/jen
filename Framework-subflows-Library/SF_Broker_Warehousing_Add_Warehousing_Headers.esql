@@ -1,0 +1,94 @@
+-- Warehouse type is input / output flag set by the calling sub-flow (internal, not by the user)
+DECLARE WarehouseType EXTERNAL CHARACTER NULL; 
+
+
+
+CREATE COMPUTE MODULE SF_Broker_Warehousing_Add_Warehousing_Headers
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		DECLARE MQSourceQueue CHAR;
+		DECLARE inMessage REFERENCE To InputRoot.XMLNSC;
+		
+		IF COALESCE(Environment.EAIframework.Context.InputType,'MQ') = 'MQ' THEN
+			-- start with a copy of the input message
+			SET OutputRoot = InputRoot;
+		
+			-- Transfer our input queue name to the warehouse in the Reply to Q field
+			SET OutputRoot.MQMD.ReplyToQ 
+				= InputRoot.MQMD.SourceQueue; 
+			-- We also send the destination queue name to the Warehouse (using the Reply to Queue Manager field
+			-- but if this is warehousing the input message, the desination queue is recorded as the input queue name 
+			-- (so that if it is replayed, it goes back to the input queue)	
+			
+			IF WarehouseType = 'INPUT' THEN
+				-- this is a copy of an input message
+				SET OutputRoot.MQMD.ReplyToQMgr 
+					= InputRoot.MQMD.SourceQueue; 	-- this is a warehouse copy of INPUT message so this queue name is the same
+			ELSE
+				-- this is a copy of an output message
+				SET OutputRoot.MQMD.ReplyToQMgr 
+					= InputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName; -- and the output queue name
+				SET OutputRoot.MQMD.CorrelId
+					= InputRoot.MQMD.MsgId; 
+			END IF;
+
+		ELSE
+			-- if we don't have an MQ header already, we need to create a message
+			-- Create MQMD header
+			SET OutputRoot = NULL;
+			CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD'; 
+
+			SET OutputRoot.MQMD.Version = MQMD_CURRENT_VERSION; 
+		--	SET OutputRoot.MQMD.StrucId = MQMD_STRUC_ID; 
+			SET OutputRoot.MQMD.MsgId 	= COALESCE( Environment.InputMessageId, MQMI_NONE );	-- queue manager will generate
+			SET OutputRoot.MQMD.CorrelId= COALESCE( InputRoot.MQMD.MsgId, InputLocalEnvironment.Destination.HTTP.RequestIdentifier, Environment.InputMessageId, MQCI_NONE);
+			SET OutputRoot.MQMD.Format	= 'MQSTR   ';
+			SET OutputRoot.MQMD.CodedCharSetId = MQCCSI_Q_MGR; 
+			SET OutputRoot.MQMD.Encoding= 273;
+			SET OutputRoot.MQMD.MsgType = MQMT_DATAGRAM;
+			SET OutputRoot.MQMD.PutDate = CURRENT_DATE;
+			SET OutputRoot.MQMD.PutTime = CAST(CURRENT_TIME AS CHAR FORMAT 'HHmmssSS');
+			
+			SET MQSourceQueue = SQL.MessageFlowLabel;
+			IF POSITION('.' IN MQSourceQueue) > 0 THEN
+				SET MQSourceQueue = SUBSTRING(MQSourceQueue FROM POSITION('.' IN MQSourceQueue) + 1);
+			END IF;			
+			SET MQSourceQueue = SUBSTRING(UPPER(MQSourceQueue) || '_HTTP_INPUT' FROM 1 FOR 48);		
+			SET OutputRoot.MQMD.ReplyToQ = MQSourceQueue;
+			IF WarehouseType = 'INPUT' THEN
+				-- this is a copy of an input message
+				SET OutputRoot.MQMD.ReplyToQMgr = MQSourceQueue;
+			ELSE
+				-- this is a copy of an output message
+				SET OutputRoot.MQMD.ReplyToQMgr 
+					= InputLocalEnvironment.Destination.MQ[1].DestinationData[1].queueName; -- and the output queue name
+			END IF;			
+			
+			MOVE inMessage TO InputRoot.SOAP.Body.*[1];
+			IF LASTMOVE(inMessage) THEN
+				CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'XMLNSC' NAME 'XMLNSC';
+				SET OutputRoot.XMLNSC.*[1] = inMessage;
+			ELSE
+				MOVE inMessage TO InputRoot.SOAP.Body;
+				IF LASTMOVE(inMessage) THEN
+					CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'XMLNSC' NAME 'XMLNSC';
+					SET OutputRoot.XMLNSC = inMessage;
+				ELSE					
+					MOVE inMessage TO InputRoot.BLOB.BLOB;
+					IF LASTMOVE(inMessage) THEN
+						CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'BLOB' NAME 'BLOB';
+						SET OutputRoot.BLOB.BLOB = inMessage;
+					ELSE
+						CREATE NEXTSIBLING OF OutputRoot.MQMD DOMAIN 'XMLNSC' NAME 'XMLNSC';
+						SET OutputRoot.XMLNSC.BodyContent = 'UNKNOWN';
+					END IF;
+				END IF;
+			END IF;
+			
+		END IF;
+		
+		RETURN TRUE;
+	END;
+
+END MODULE;

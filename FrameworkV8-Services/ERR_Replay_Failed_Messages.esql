@@ -1,0 +1,882 @@
+--------------------------------------------------------------------------------------
+-- Program History
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Description:
+-- This is triggered periodically to look for replayable messages in the exception database table
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+CREATE COMPUTE MODULE ERR_Replay_Failed_Messages_Determine_Message_Type
+	
+CREATE FUNCTION Main() RETURNS BOOLEAN
+
+	BEGIN
+
+		Declare DB_IN_PARAMS  Reference To InputLocalEnvironment; -- Used in database write and reads
+		Declare DB_OUT_PARAMS Reference To InputLocalEnvironment; -- Used in database reads to hold the output
+		Declare enVal  Reference To Environment;
+		Declare evRef  Reference To Environment.Variables;
+		Declare inRef  Reference To InputLocalEnvironment;
+		Declare msgRef Reference To InputLocalEnvironment;
+		Declare outRFH Reference To OutputRoot;
+		
+		Declare oleRef Reference to OutputLocalEnvironment;		-- Used for db reads
+		
+		Declare SQL_STATEMENT Char;
+		Declare throwOnNoRowsTrue Boolean True;
+		Declare throwOnNoRowsFalse Boolean False;
+		Declare resultBranchName Char;
+		Declare WhereClause Char;
+		Declare maxMsgs Char;
+		Declare maxReplayLimit INTEGER;
+		Declare noMessageString Constant Char 'No matching message record found for this exception';
+
+		CREATE LASTCHILD OF DB_IN_PARAMS AS DB_IN_PARAMS Name 'DBin';
+		CREATE LASTCHILD OF DB_OUT_PARAMS AS DB_OUT_PARAMS Name 'DBout';
+		SET Environment.Variables.ExceptionId = '';
+
+		Move inRef  To InputRoot.XMLNS.messageReplayTrigger;
+		
+		CALL getEnvValues(enVal);
+
+		-- Set maximum number of messages to be processed in one go
+		Set maxMsgs = Coalesce(enVal.BROKER_REPLAY_MAXMSGS, 100);
+
+		-- Set an upper limit where replay has been specified as unlimited
+		SET maxReplayLimit = Coalesce(CAST(enVal.BROKER_MAX_REPLAY_LIMIT AS INTEGER), 10);
+
+		-- This flag is used to determine which path to follow in the filter
+		-- Only want to use output node if we are propagating
+		--Set evRef.useMQOutputNode = 'Y';
+		Set evRef.useMQOutputNode = 'N';
+
+		-- ************************************************************************************************
+		-- Start of component replay messages processing
+		-- ************************************************************************************************
+
+		If Cardinality(inRef.statusNotification[]) > 0 Then
+			If inRef.statusNotification.componentStatus = 'AVAILABLE' Then
+
+				Set DB_OUT_PARAMS.MESSAGE_EXCEPTION[] = PASSTHRU('Select CORREL_ID,
+													 					 EXCEPTION_ID,
+													 					 EXCEPTION_TSTMP,
+													 					 FORMAT,
+													 					 IS_EXCEPTION_TRUNC,
+													 					 IS_MESSAGE_TRUNC,
+													 					 IS_USR_FLDR_TRUNC,
+													 					 IS_JMS_FLDR_TRUNC,
+													 					 MESSAGE,
+													 					 MQ_MSG_ID,
+													 					 QUEUE_NAME,
+													 					 REQUEST_TYPE,
+													 					 REPLAY_QUEUE,
+													 					 REPLAY_RULE,
+													 					 REPLY_TO_QUEUE,
+																		 REPLY_TO_QMGR,
+													 					 STATUS,
+													 					 RFH_USR,
+													 					 RFH_JMS,
+													 					 REPLAY_COUNT,
+													 					 ERROR_CODE,
+													 					 OWNER,
+													 					 USER_ID
+										  			   	   		    From EAI.MESSAGE_EXCEPTION
+										   			      		   Where rownum < ' || maxMsgs || '
+										   			        		 And REPLAY_RULE = ''H''
+										   	 			    		 And COMPONENT_ID = ''' || inRef.statusNotification.componentID || '''
+										   	 			    		 AND STATUS = ''0''
+										   	 	   	   		    Order by EXCEPTION_ID');
+
+				Set evRef.failedMessages[] = DB_OUT_PARAMS.MESSAGE_EXCEPTION[];
+
+				CALL ClearDB_PARAMS(DB_OUT_PARAMS);
+
+				-- For each message
+				For msgRef As evRef.failedMessages[] Do
+
+					-- Add Exception Id's to log msg
+					SET Environment.Variables.ExceptionId = Environment.Variables.ExceptionId || CAST(msgRef.EXCEPTION_ID AS CHAR);
+
+					-- Check if the REPLAY_QUEUE value is UNDEFINED
+					If msgRef.REPLAY_QUEUE = 'UNDEFINED' Then
+				        Throw User Exception Values
+				           ('ESB',
+				            'The REPLAY_QUEUE is undefined',
+				            'EAI:00015',
+				            'soap:Server',
+				            'Exception ID = ', msgRef.EXCEPTION_ID,
+				            'Queue Name = ', msgRef.QUEUE_NAME
+				            );
+					End If;
+
+					-- Read MAX_REPLAY_COUNT and REPLAY_WITH_RFH from MESSAGE_REPLAY_RULE table
+					Create Field oleRef.MESSAGE_REPLAY_RULE.INPUT As DB_IN_PARAMS;
+
+					Set resultBranchName = 'MESSAGE_REPLAY_RULE';
+
+					Create LastChild Of DB_IN_PARAMS Name 'QUEUE_NAME' Value msgRef.QUEUE_NAME;
+					Create LastChild Of DB_IN_PARAMS Name 'REQUEST_TYPE' Value msgRef.REQUEST_TYPE;
+					Create LastChild Of DB_IN_PARAMS Name 'ERROR_CODE_MATCH_FILTER' Value Substring(msgRef.ERROR_CODE From 1 For 20);
+
+					Set SQL_STATEMENT    = 'Select REPLAY_WITH_RFH, MAX_REPLAY_COUNT, TIVOLI_ALERT
+											  From EAI.MESSAGE_REPLAY_RULE
+											 Where QUEUE_NAME = ? And
+												   REQUEST_TYPE = ? And
+												   ERROR_CODE_MATCH_FILTER = ?';
+
+					CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00097', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+					-- Retry with request type ANY
+					IF Cardinality(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.[]) = 0 THEN
+						SET DB_IN_PARAMS.REQUEST_TYPE = 'ANY';
+						CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00097a', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+						-- Retry with ERROR_CODE_MATCH_FILTER ANY
+						IF Cardinality(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.[]) = 0 THEN
+							SET DB_IN_PARAMS.ERROR_CODE_MATCH_FILTER = 'ANY';
+							CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsTrue, 'EAI:00097b', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+						END IF;
+					END IF;
+
+					CALL CLOB_TRUNCATION_PROCESSING(msgRef, DB_OUT_PARAMS, evRef);
+
+					IF DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.MAX_REPLAY_COUNT = 0 THEN -- replay rule for the message is 'unlimited replay'
+						IF COALESCE(evRef.parsedUSR.usr.ErrReplayCount, 0) < maxReplayLimit THEN -- replay count not yet reached limit set in environment_values table
+							CALL ReplayMessage(msgRef,evRef,outRFH,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS);
+						ELSE -- replay limit reached
+							CALL ReplayLimitReached(msgRef,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS,OutputRoot);
+						END IF;
+					ELSE -- replay rule for the message is 'finite replay'
+						IF COALESCE(evRef.parsedUSR.usr.ErrReplayCount, 0) < DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.MAX_REPLAY_COUNT THEN -- replay count not yet reached limit set in message_replay_rule table
+							CALL ReplayMessage(msgRef,evRef,outRFH,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS);
+						ELSE
+					    	CALL ReplayLimitReached(msgRef,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS,OutputRoot);
+						END IF;
+				    END IF;
+
+				End For;
+
+			Else
+				-- Update the exception record witht he following values to put them on hold
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_RULE' Value 'H';
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' Value '0';
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'COMPONENT_ID' Value inRef.statusNotification.componentID;
+
+				Set SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION
+			            			    Set REPLAY_RULE = ?
+			             			  Where STATUS = ?
+			             			    And COMPONENT_ID = ?';
+
+				CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00021', DB_IN_PARAMS);
+
+				-- Send message out to be replayed
+				--Propagate;
+
+			End If;
+		-- ************************************************************************************************
+		-- End of component replay messages processing
+		-- ************************************************************************************************
+
+
+		-- ************************************************************************************************
+		-- Start of Automatic replay messages processing
+		-- ************************************************************************************************
+		ElseIf Cardinality(inRef.auto[]) > 0 Then
+
+			SET DB_OUT_PARAMS.MESSAGE_EXCEPTION[] = PASSTHRU('Select CORREL_ID,
+												 					 EXCEPTION_ID,
+												 					 EXCEPTION_TSTMP,
+												 					 FORMAT,
+												 					 IS_EXCEPTION_TRUNC,
+												 					 IS_MESSAGE_TRUNC,
+												 					 IS_USR_FLDR_TRUNC,
+												 					 IS_JMS_FLDR_TRUNC,
+												 					 MESSAGE,
+												 					 MQ_MSG_ID,
+												 					 QUEUE_NAME,
+												 					 REQUEST_TYPE,
+												 					 REPLAY_QUEUE,
+												 					 REPLAY_RULE,
+												 					 REPLY_TO_QUEUE,
+																	 REPLY_TO_QMGR,
+												 					 STATUS,
+												 					 RFH_USR,
+												 					 RFH_JMS,
+												 					 REPLAY_COUNT,
+												 					 ERROR_CODE,
+												 					 OWNER,
+												 					 USER_ID
+												  			    From EAI.MESSAGE_EXCEPTION
+												  			   Where STATUS = ''0''
+												  			     And REPLAY_RULE = ''A''
+												  			     And AUTO_REPLAY_TSTMP < CURRENT_TIMESTAMP
+												  		    Order by EXCEPTION_ID FETCH FIRST ' || maxMsgs || ' ROWS ONLY');
+
+			Set evRef.failedMessages[] = DB_OUT_PARAMS.MESSAGE_EXCEPTION[];
+
+			CALL ClearDB_PARAMS(DB_OUT_PARAMS);
+
+			-- For each message
+			For msgRef As evRef.failedMessages[] Do
+
+				-- Check if the REPLAY_QUEUE is set to UNDEFINED
+				If msgRef.REPLAY_QUEUE = 'UNDEFINED' Then
+					Throw User Exception Values
+				           ('EAI',
+				            'The REPLAY_QUEUE is undefined',
+				            'EAI:00024',
+				            'soap:Server',
+				            'Exception ID = ', msgRef.EXCEPTION_ID,
+				            'Queue Name = ', msgRef.QUEUE_NAME
+				            );
+				End If;
+
+				-- Read MAX_REPLAY_COUNT and REPLAY_WITH_RFH from MESSAGE_REPLAY_RULE table
+				Create Field oleRef.MESSAGE_REPLAY_RULE.INPUT As DB_IN_PARAMS;
+
+				Set resultBranchName = 'MESSAGE_REPLAY_RULE';
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'QUEUE_NAME'   Value msgRef.QUEUE_NAME;
+				CREATE LASTCHILD of DB_IN_PARAMS NAME 'REQUEST_TYPE' VALUE msgRef.REQUEST_TYPE;
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'ERROR_CODE_MATCH_FILTER'   Value Substring(msgRef.ERROR_CODE From 1 For 20);
+
+				Set SQL_STATEMENT    = 'Select MAX_REPLAY_COUNT, REPLAY_WITH_RFH, TIVOLI_ALERT, EXCP_HIGH_THRESHOLD, MAXAGE
+										  From EAI.MESSAGE_REPLAY_RULE
+										 Where QUEUE_NAME = ? And
+											   REQUEST_TYPE = ? And
+											   ERROR_CODE_MATCH_FILTER = ?';
+
+
+				Call cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00022', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+
+				-- Retry with request type ANY
+				IF Cardinality(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.[]) = 0 THEN
+					SET DB_IN_PARAMS.REQUEST_TYPE = 'ANY';
+					CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00022a', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+					-- Retry with ERROR_CODE_MATCH_FILTER ANY
+					IF Cardinality(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.[]) = 0 THEN
+						SET DB_IN_PARAMS.ERROR_CODE_MATCH_FILTER = 'ANY';
+						CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsTrue, 'EAI:00022b', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+					END IF;
+				END IF;
+
+				-- If the message is missing from the exception, set the exception to Manual				
+				IF (msgRef.REPLY_TO_QUEUE IS NULL AND msgRef.REPLY_TO_QMGR IS NULL) THEN
+					CALL ReplayLimitReached(msgRef,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS,OutputRoot);
+				ELSE
+				CALL CLOB_TRUNCATION_PROCESSING(msgRef, DB_OUT_PARAMS, evRef);
+
+
+				DECLARE msgReplayCount INT;
+				SET msgReplayCount = CAST(COALESCE(evRef.parsedUSR.usr.ErrReplayCount, '0') AS INT);
+				
+				IF (CAST(msgRef.EXCEPTION_TSTMP AS TIMESTAMP) < (CURRENT_TIMESTAMP - CAST(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.MAXAGE AS INTERVAL HOUR))) THEN
+					CALL ReplayLimitReached(msgRef,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS,OutputRoot);
+				ELSE
+					IF DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.MAX_REPLAY_COUNT = 0 THEN -- replay rule for the message is 'unlimited replay'
+						IF msgReplayCount < maxReplayLimit THEN -- replay count not yet reached limit set in environment_values table
+							CALL ReplayMessage(msgRef,evRef,outRFH,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS);
+						ELSE -- replay limit reached
+							CALL ReplayLimitReached(msgRef,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS,OutputRoot);
+						END IF;
+					ELSE -- replay rule for the message is 'finite replay'
+						IF msgReplayCount < DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.MAX_REPLAY_COUNT THEN -- replay count not yet reached limit set in message_replay_rule table
+							CALL ReplayMessage(msgRef,evRef,outRFH,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS);
+						ELSE
+						   	CALL ReplayLimitReached(msgRef,oleRef,DB_OUT_PARAMS,DB_IN_PARAMS,OutputRoot);
+						END IF;
+					END IF;
+				END IF;
+				END IF;
+			End For;
+		-- ************************************************************************************************
+		-- End of Automatic replay messages processing
+		-- ************************************************************************************************
+
+
+		-- ************************************************************************************************
+		-- Start of manual replay messages processing
+		-- ************************************************************************************************
+		ElseIf Cardinality(inRef.manual[]) > 0 Then
+
+			-- Build the Where clause for the database read
+			Set WhereClause = 'Where REPLAY_RULE = ''M'' ';
+
+			-- Depending on the child elements of the manual element, the Where clause will be different.
+			-- Check which of the choice elements are in the message
+			If Cardinality(inRef.manual.queueDetails[]) > 0 Then
+				Set WhereClause = WhereClause  || ' And STATUS = ''R'' And QUEUE_NAME = ''' ||
+								  inRef.manual.queueDetails.queueName || ''' ';
+				-- If optional elements are in the message, add them to the Where clause
+				If Cardinality(inRef.manual.queueDetails.owner[]) > 0 And Cardinality(inRef.manual.queueDetails.status[]) > 0 Then
+					Set WhereClause = WhereClause  ||
+									' And OWNER = ''' || inRef.manual.queueDetails.owner || '
+									  And STATUS = ''' || inRef.manual.queueDetails.status || ''' ';
+				ElseIf Cardinality(inRef.manual.queueDetails.owner[]) > 0 Then
+					Set WhereClause = WhereClause  || ' And OWNER = ''' ||
+									  inRef.manual.queueDetails.owner || ''' ';
+				ElseIf Cardinality(inRef.manual.queueDetails.status[]) > 0 Then
+					Set WhereClause = WhereClause  || ' And STATUS = ''' ||
+									  inRef.manual.queueDetails.status || ''' ';
+				End If;
+
+			ElseIf Cardinality(inRef.manual.exceptionTimestamp[]) > 0 Then
+				Set WhereClause = WhereClause  || ' And EXCEPTION_TSTMP =   '''|| inRef.manual.exceptionTimestamp ||'''';
+			ElseIf Cardinality(inRef.manual.exceptionID[]) > 0 Then
+				Set WhereClause = WhereClause  || ' And EXCEPTION_ID = ''' ||
+								  inRef.manual.exceptionID || ''' ';
+			Else
+				Throw User Exception Values
+	               ('ESB',
+	                'Invalid messageReplayTrigger message',
+	                'EAI:00030',
+	                'soap:Server');
+			End If;
+
+			-- Get component replay messages
+			Set DB_OUT_PARAMS.MESSAGE_EXCEPTION[] = PASSTHRU('Select CORREL_ID,
+												 					 EXCEPTION_ID,
+												 					 EXCEPTION_TSTMP,
+												 					 FORMAT,
+												 					 IS_EXCEPTION_TRUNC,
+												 					 IS_MESSAGE_TRUNC,
+												 					 IS_USR_FLDR_TRUNC,
+												 					 IS_JMS_FLDR_TRUNC,
+												 					 MESSAGE,
+												 					 MQ_MSG_ID,
+												 					 QUEUE_NAME,
+												 					 REQUEST_TYPE,
+												 					 REPLAY_QUEUE,
+												 					 REPLAY_RULE,
+												 					 REPLY_TO_QUEUE,
+																	 REPLY_TO_QMGR,
+												 					 STATUS,
+												 					 RFH_USR,
+												 					 RFH_JMS,
+												 					 REPLAY_COUNT,
+												 					 ERROR_CODE,
+												 					 OWNER,
+												 					 USER_ID
+										  			   		 	From EAI.MESSAGE_EXCEPTION ' ||
+										   			   		 	     WhereClause || '
+										   	 	   		 	Order by EXCEPTION_ID FETCH FIRST ' ||
+															maxMsgs || 
+															' ROWS ONLY');
+
+			Set evRef.failedMessages[] = DB_OUT_PARAMS.MESSAGE_EXCEPTION[];
+
+			CALL ClearDB_PARAMS(DB_OUT_PARAMS);
+
+			-- For each message
+			For msgRef As evRef.failedMessages[] Do
+
+				-- Read MAX_REPLAY_COUNT and REPLAY_WITH_RFH from MESSAGE_REPLAY_RULE table
+				Create Field oleRef.MESSAGE_REPLAY_RULE.INPUT As DB_IN_PARAMS;
+
+				Set resultBranchName = 'MESSAGE_REPLAY_RULE';
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'QUEUE_NAME'   Value msgRef.QUEUE_NAME;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'REQUEST_TYPE' Value msgRef.REQUEST_TYPE;
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'ERROR_CODE_MATCH_FILTER'   Value Substring(msgRef.ERROR_CODE From 1 For 20);
+
+				Set SQL_STATEMENT    = 'Select REPLAY_WITH_RFH
+										  From EAI.MESSAGE_REPLAY_RULE
+										 Where QUEUE_NAME   = ?
+										   And REQUEST_TYPE = ?
+										   And ERROR_CODE_MATCH_FILTER = ?';
+
+				Call cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00098', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+				-- Retry with request type ANY
+				IF Cardinality(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.[]) = 0 THEN
+					SET DB_IN_PARAMS.REQUEST_TYPE = 'ANY';
+					CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00098a', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+					-- Retry with ERROR_CODE_MATCH_FILTER ANY
+					IF Cardinality(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.[]) = 0 THEN
+						SET DB_IN_PARAMS.ERROR_CODE_MATCH_FILTER = 'ANY';
+						CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, 'EAI:00098b', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+					END IF;
+				END IF;
+
+				-- Update the exception record
+				Create Field oleRef.MESSAGE_EXCEPTION.INPUT As DB_IN_PARAMS;
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS'       Value 'P';
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_TSTMP' Value CURRENT_TIMESTAMP;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_ID' Value msgRef.EXCEPTION_ID;		-- was evRef.failedMessages
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'QUEUE_NAME'   Value msgRef.QUEUE_NAME;			-- was evRef.failedMessages
+
+				Set SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION
+			            			    Set STATUS = ?,
+			            			        REPLAY_TSTMP = ?
+			             			  Where EXCEPTION_ID = ?
+			             			    And QUEUE_NAME = ?';
+
+				CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00031', DB_IN_PARAMS);
+
+				-- Format the message
+				-- Null Output
+				Set OutputRoot = Null;
+
+				-- Output message created with properties
+
+				Set OutputRoot.Properties			= InputRoot.Properties;
+				-- Set up MQMD
+			    Set OutputRoot.MQMD                 = InputRoot.MQMD;
+			    Set OutputRoot.MQMD.CorrelId        = LEFT(CAST(msgRef.CORREL_ID AS BLOB CCSID 819), 24);
+			    Set OutputRoot.MQMD.Format          = msgRef.FORMAT;
+			    Set OutputRoot.MQMD.MsgId           = LEFT(CAST(msgRef.MQ_MSG_ID AS BLOB CCSID 819), 24);
+			    Set OutputRoot.MQMD.ReplyToQ        = msgRef.REPLY_TO_QUEUE;
+			    Set OutputRoot.MQMD.ReplyToQMgr     = msgRef.REPLY_TO_QMGR;
+			    Set OutputRoot.MQMD.UserIdentifier	= Coalesce(msgRef.USER_ID,'');
+
+
+
+				CALL CLOB_TRUNCATION_PROCESSING(msgRef, DB_OUT_PARAMS, evRef);
+
+				-- If no entry exists in message_replay_rule, reply with RFH
+				IF DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.REPLAY_WITH_RFH = 'Y' OR 
+					COALESCE(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.REPLAY_WITH_RFH, '') = '' Then
+
+				------------------------------
+				-- PARSE USR or JMS Folders --
+				------------------------------
+
+			        If FIELDNAME(evRef.parsedUSR.usr.[>]) IS NOT NULL THEN			-- check first elemennt exists
+			        	Set OutputRoot.MQMD.Format = MQFMT_RF_HEADER_2;
+				        Set OutputRoot.MQRFH2.(MQRFH2.Field)Format  = MQFMT_STRING;
+						Set OutputRoot.MQRFH2.usr  = evRef.parsedUSR.usr;
+				        DELETE FIELD evRef.parsedUSR.usr;
+
+				        -- If exists increment the replay 
+				        MOVE outRFH To OutputRoot.MQRFH2.usr.ErrReplayCount;
+							IF Not LastMove(outRFH) Then
+								Set OutputRoot.MQRFH2.usr.ErrReplayCount = 1;
+							ELSE
+								Set outRFH = Cast(msgRef.REPLAY_COUNT As INT) + 1;
+							END IF;
+
+						DELETE FIELD OutputRoot.MQRFH2.usr.MQMDPutDate;
+						DELETE FIELD OutputRoot.MQRFH2.usr.MQMDPutTime;
+				    End If;
+
+			        If FIELDNAME(evRef.parsedJMS.jms.[>]) Is Not Null Then			-- changed to check first elemennt exists
+			        	Set OutputRoot.MQMD.Format = MQFMT_RF_HEADER_2;
+				        Set OutputRoot.MQRFH2.(MQRFH2.Field)Format  = MQFMT_STRING;
+						Set OutputRoot.MQRFH2.jms  = evRef.parsedJMS.jms;
+				        DELETE FIELD evRef.parsedUSR.jms;
+				    End If;
+				ELSE
+				    -- REPLAY_WITH_RFH is not  'Y'
+					Set OutputRoot.MQMD.Format = MQFMT_STRING;
+				END IF;
+				
+				--  always parsing as BLOB 
+				CREATE LASTCHILD OF OutputRoot DOMAIN 'BLOB' Parse(evRef.theXML);
+				
+			    -- Set up the MESSAGE part
+			    --Create LastChild of OutputRoot Domain 'XMLNSC' Parse(evRef.theXML);
+
+			    -- Set up the Destination Queue
+				Set oleRef.Destination.MQDestinationList.DestinationData.queueName[1] = msgRef.REPLAY_QUEUE;
+
+			    -- useMQOutputNode is initialised to 'N' at the start of the code.
+			    -- Explicitly set to 'Y' here in order to propagate.
+			    SET evRef.useMQOutputNode = 'Y';
+
+			    -- Send message out to be replayed
+			    -- filter for selecting broker 8 or old broker during dual running **************
+			    IF POSITION('8' IN msgRef.OWNER) > 0 THEN
+				    PROPAGATE TO TERMINAL 0;
+			    ELSE 
+				    PROPAGATE TO TERMINAL 1;
+			    END IF;
+			End For;
+
+		-- ************************************************************************************************
+		-- End of manual replay messages processing
+		-- ************************************************************************************************
+		Else
+			-- Trigger message has not been created correctly
+		    Throw User Exception Values
+		       ('EAI',
+		        'Invalid replay message',
+		        'EAI:00036',
+		        'soap:Client',
+		        'Original message = ', InputRoot.XMLNS
+		        );
+		End If;
+
+		RETURN FALSE;
+
+	END;
+
+	-- ********************************************************************************************************************
+	-- ******************************************************* START ******************************************************
+	-- ********************************************************************************************************************
+	CREATE PROCEDURE CLOB_TRUNCATION_PROCESSING(IN msgRef REFERENCE, IN DB_OUT_PARAMS REFERENCE, IN evRef REFERENCE) BEGIN
+
+		DECLARE resultBranchName,  SQL_STATEMENT CHAR;
+		DECLARE throwOnNoRowsTrue 		BOOLEAN TRUE;
+		DECLARE throwOnNoRowsFalse 		BOOLEAN FALSE;
+		DECLARE outRFH					REFERENCE TO OutputRoot;
+		DECLARE oleRef 					REFERENCE TO OutputLocalEnvironment;
+		DECLARE ileRef, DB_IN_PARAMS 	REFERENCE TO InputLocalEnvironment;
+
+	    -- Only build the MQRFH2 if we need to
+	    If DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.REPLAY_WITH_RFH = 'Y' OR COALESCE(DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.REPLAY_WITH_RFH, '') = '' Then
+			---------------------------
+			-- USR folder processing --
+			---------------------------
+	        If msgRef.IS_USR_FLDR_TRUNC = 'Y' Then
+
+				CREATE LASTCHILD OF DB_IN_PARAMS AS DB_IN_PARAMS NAME 'CLOB_SELECT';
+				Set resultBranchName = 'CLOB_USR';
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value 'U';
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_ID' Value msgRef.EXCEPTION_ID;
+
+				Set SQL_STATEMENT    = 'Select FIELD_DATA
+										  From EAI.MESSAGE_EXCEPTION_CLOB
+										 Where FIELD_TYPE   = ?
+										   And EXCEPTION_ID = ?';
+
+				Call cDatabaseRead(SQL_STATEMENT, throwOnNoRowsTrue, 'EAI:00032', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+				-- Parse the USR folder retrieved from the database read
+				Set evRef.theUSR = Cast(DB_OUT_PARAMS.CLOB_USR.FIELD_DATA As BLOB CCSID 819);
+
+				DELETE FIELD DB_OUT_PARAMS.CLOB_USR;
+				MOVE DB_IN_PARAMS PARENT;
+				DELETE FIELD DB_IN_PARAMS.CLOB_SELECT;
+
+	        Else
+
+	        	-- The USR was not truncated so we can use the USR from the MESSAGE_EXCEPTION table
+	       		Set evRef.theUSR = Cast(msgRef.RFH_USR As BLOB CCSID 819);
+
+	        End If;
+
+			-- need to parse the usr folder so we can process values in it.
+			If evRef.theUSR Is Not Null Then
+				Create LastChild of ileRef Domain 'XML' Parse(evRef.theUSR);
+				Set evRef.parsedUSR.usr  = ileRef.XML[<].usr;
+				DELETE FIELD ileRef.XML[<];
+				DELETE FIELD evRef.theUSR;
+			END IF;
+
+			---------------------------
+			-- JMS folder processing --
+			---------------------------
+	        If msgRef.IS_JMS_FLDR_TRUNC = 'Y' Then
+
+				CREATE LASTCHILD OF DB_IN_PARAMS AS DB_IN_PARAMS NAME 'JMS_SELECT';
+				Set resultBranchName = 'CLOB_JMS';
+
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value 'J';
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_ID' Value msgRef.EXCEPTION_ID;
+
+				Set SQL_STATEMENT    = 'Select FIELD_DATA
+										  From EAI.MESSAGE_EXCEPTION_CLOB
+										 Where FIELD_TYPE   = ?
+										   And EXCEPTION_ID = ?';
+
+				Call cDatabaseRead(SQL_STATEMENT, throwOnNoRowsTrue, 'EAI:00032', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+				-- Parse the JMS folder retrieved from the database read
+				Set evRef.theJMS = Cast(DB_OUT_PARAMS.CLOB_JMS.FIELD_DATA As BLOB CCSID 819);
+
+				DELETE FIELD DB_OUT_PARAMS.CLOB_JMS;
+				MOVE DB_IN_PARAMS PARENT;
+				DELETE FIELD DB_IN_PARAMS.JMS_SELECT;
+
+	        Else
+
+	        	-- The USR was not truncated so we can use the USR from the MESSAGE_EXCEPTION table
+	       		Set evRef.theJMS = Cast(msgRef.RFH_JMS As BLOB CCSID 819);
+
+	        End If;
+
+			-- need to parse the usr folder so we can process values in it.
+			If evRef.theJMS Is Not Null Then
+				Create LastChild of ileRef Domain 'XML' Parse(evRef.theJMS);
+				Set evRef.parsedJMS.jms  = ileRef.XML[<].jms;
+				DELETE FIELD ileRef.XML[<];
+				DELETE FIELD evRef.theJMS;
+			END IF;
+
+		End If;
+
+		------------------
+		-- XML Document --
+		------------------
+
+			
+	    If msgRef.IS_MESSAGE_TRUNC = 'N' Then
+	        Set evRef.theXML       = Cast(msgRef.MESSAGE As BLOB CCSID 819);
+
+	    ElseIf msgRef.IS_MESSAGE_TRUNC  = 'Y' Then
+
+			CREATE LASTCHILD OF DB_IN_PARAMS AS DB_IN_PARAMS NAME 'XML_SELECT';
+			Set resultBranchName = 'CLOB_XML';
+
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value 'M';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value msgRef.EXCEPTION_ID;
+
+			Set SQL_STATEMENT    = 'Select FIELD_DATA
+									  From EAI.MESSAGE_EXCEPTION_CLOB
+									 Where FIELD_TYPE   = ?
+									   And EXCEPTION_ID = ?';
+
+			Call cDatabaseRead(SQL_STATEMENT, throwOnNoRowsTrue, 'EAI:00033', DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+			Set evRef.theXML = Cast(DB_OUT_PARAMS.CLOB_XML.FIELD_DATA As BLOB CCSID 819);
+
+			DELETE FIELD DB_OUT_PARAMS.CLOB_XML;
+			MOVE DB_IN_PARAMS PARENT;
+			DELETE FIELD DB_IN_PARAMS.XML_SELECT;
+	    Else
+	        -- Message truncated holds an invalid value, i.e. not 'Y' or 'N'
+	        Throw User Exception Values
+	           ('EAI',
+	            'Invalid IS_MESSAGE_TRUNC value',
+	            'EAI:00034',
+	            'soap:Server',
+	            'Exception ID = ',msgRef.EXCEPTION_ID,
+	            'IS_MESSAGE_TRUNC = ',msgRef.IS_MESSAGE_TRUNC
+	            );
+	    End If;
+	END;
+	-- ********************************************************************************************************************
+	-- ******************************************************** END *******************************************************
+	-- ********************************************************************************************************************
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE ClearDB_PARAMS(IN PassedIn REFERENCE) BEGIN
+		DECLARE j INTEGER 0;
+		DECLARE i INTEGER CARDINALITY(PassedIn.[]);
+		WHILE j<i DO
+			SET j = j + 1;
+			SET PassedIn.[1] = NULL;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE ReplayMessage(IN    my_msgRef REFERENCE, INOUT         my_evRef REFERENCE, INOUT       my_outRFH REFERENCE,
+								   INOUT my_oleRef REFERENCE, INOUT my_DB_OUT_PARAMS REFERENCE, INOUT my_DB_IN_PARAMS REFERENCE) BEGIN
+
+		DECLARE my_resultBranchName, my_SQL_STATEMENT CHAR;
+		DECLARE my_throwOnNoRowsTrue BOOLEAN TRUE;
+
+		-- Format the message
+		-- Null Output
+		Set OutputRoot = Null;
+		
+		-- Create out message with Properties
+		Set OutputRoot.Properties 		= InputRoot.Properties;
+
+		-- Set up MQMD
+	    Set OutputRoot.MQMD                = InputRoot.MQMD;
+	    Set OutputRoot.MQMD.CorrelId       = LEFT(CAST(my_msgRef.CORREL_ID AS BLOB CCSID 819), 24);
+	    Set OutputRoot.MQMD.Format         = my_msgRef.FORMAT;
+	    Set OutputRoot.MQMD.MsgId          = LEFT(CAST(my_msgRef.MQ_MSG_ID AS BLOB CCSID 819), 24);
+	    Set OutputRoot.MQMD.ReplyToQ       = my_msgRef.REPLY_TO_QUEUE;
+	    Set OutputRoot.MQMD.ReplyToQMgr    = my_msgRef.REPLY_TO_QMGR;
+	    Set OutputRoot.MQMD.UserIdentifier = Coalesce(my_msgRef.USER_ID,'');
+
+		-- Only build the MQRFH2 if we need to
+		If my_DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.REPLAY_WITH_RFH = 'Y' OR 
+					my_DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.REPLAY_WITH_RFH IS NULL Then
+
+	        -- Set up message values
+	        Set OutputRoot.MQMD.Format                 = MQFMT_RF_HEADER_2;
+	       	Set OutputRoot.MQRFH2.(MQRFH2.Field)Format = MQFMT_STRING;
+	        SET OutputRoot.MQRFH2.usr          	   	   = my_evRef.parsedUSR.usr;
+	        SET OutputRoot.MQRFH2.jms          	   	   = my_evRef.parsedJMS.jms;
+
+			-- If an RFH header is present add or increment the replayCount user folder element.
+			MOVE my_outRFH To OutputRoot.MQRFH2.usr.ErrReplayCount;
+			IF Not LastMove(my_outRFH) Then
+				Set OutputRoot.MQRFH2.usr.ErrReplayCount = 1;
+			ELSE
+				Set my_outRFH = Cast(my_msgRef.REPLAY_COUNT As INT) + 1;
+			END IF;
+			
+			DELETE FIELD OutputRoot.MQRFH2.usr.MQMDPutDate;
+			DELETE FIELD OutputRoot.MQRFH2.usr.MQMDPutTime;
+		ELSE
+	    	-- No RFH2
+	    	SET OutputRoot.MQMD.Format = MQFMT_STRING;			
+		END IF;
+		
+		-- Parse always as BLOB		
+		CREATE LASTCHILD OF OutputRoot DOMAIN 'BLOB' Parse(my_evRef.theXML);
+		
+
+	    -- Set up the MESSAGE part
+
+	    -- Set up the Destination Queue
+		Set my_oleRef.Destination.MQDestinationList.DestinationData.queueName[1] = my_msgRef.REPLAY_QUEUE;
+
+	    -- Update exception record just before we propagate
+		-- Update the exception record
+		Create Field my_oleRef.MESSAGE_EXCEPTION.INPUT As my_DB_IN_PARAMS;
+
+		CREATE LASTCHILD of my_DB_IN_PARAMS Name 'EXCEPTION_ID' Value my_msgRef.EXCEPTION_ID;		-- was evRef.failedMessages
+		CREATE LASTCHILD of my_DB_IN_PARAMS Name 'QUEUE_NAME'   Value my_msgRef.QUEUE_NAME;		-- was evRef.failedMessages
+
+		Set my_SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION
+	            			    Set STATUS = ''P'',
+	            			        REPLAY_TSTMP = CURRENT_TIMESTAMP
+	             			  Where EXCEPTION_ID = ?
+	             			    And QUEUE_NAME = ?
+	             			    And AUTO_REPLAY_TSTMP < CURRENT_TIMESTAMP';
+
+		CALL cDatabaseWrite(my_SQL_STATEMENT, 'EAI:00016', my_DB_IN_PARAMS);
+
+	    SET my_evRef.useMQOutputNode = 'Y';
+
+	    -- Before we propagate, clear down reference variables not needed
+	    SET OutputLocalEnvironment.MESSAGE_REPLAY_RULE = NULL;
+		SET OutputLocalEnvironment.MESSAGE_EXCEPTION = NULL;
+		DELETE FIELD my_evRef.parsedJMS;
+		DELETE FIELD my_evRef.parsedUSR;
+		DELETE FIELD my_evRef.theXML;
+
+	    -- Send message out to be replayed
+	    IF POSITION('8' IN my_msgRef.OWNER) > 0 THEN
+		    PROPAGATE TO TERMINAL 0;
+	    ELSE 
+		    PROPAGATE TO TERMINAL 1;
+	    END IF;
+	END;
+
+
+	CREATE PROCEDURE ReplayLimitReached(IN my_msgRef REFERENCE, INOUT my_oleRef REFERENCE, INOUT my_DB_OUT_PARAMS REFERENCE, INOUT my_DB_IN_PARAMS REFERENCE, IN outRef REFERENCE) BEGIN
+
+		-- Retry limit exceeded
+		-- Update the exception record
+		-- Change to manual replay or T if alert required.
+
+		DECLARE my_SQL_STATEMENT CHAR;
+		DECLARE finalState CHAR '0';
+		DECLARE hostName CHAR COALESCE(Environment.Variables.ENV.HOSTNAME, 'NoHostName');
+		Declare eventNS NAMESPACE '';
+		
+		-- Finnair, for future use, possibly alert Tivoli .... always set to N at the moment 
+		IF my_DB_OUT_PARAMS.MESSAGE_REPLAY_RULE.TIVOLI_ALERT = 'Y' THEN
+
+			SET finalState = 'T';
+
+			-- create MQMD
+			CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD';
+			SET outRef.MQMD.Version = 2;
+			SET outRef.MQMD.Format = MQFMT_STRING;
+
+			-- create event msg
+		    CREATE LASTCHILD OF outRef AS outRef DOMAIN 'XMLNS';
+		    CREATE LASTCHILD OF outRef AS outRef TYPE Name NAMESPACE eventNS NAME 'RaiseEventRequest';
+		    CREATE LASTCHILD OF outRef           TYPE Name NAMESPACE eventNS NAME 'EventId' VALUE '7';
+		    CREATE LASTCHILD OF outRef AS outRef TYPE Name NAMESPACE eventNS NAME 'Parameters';
+			CREATE LASTCHILD OF outRef           TYPE Name NAMESPACE eventNS NAME 'Parameter' VALUE
+			'NoThreadInfo ' 
+			|| hostName || 
+			' NoServerInfo WMBI ExceptionHandling ERROR EAI:Exception reported from an automatically replayed message which has failed all its automatic replays	Exception Id: ' 
+			|| CAST(my_msgRef.EXCEPTION_ID AS CHAR) || ' Exception Timestamp: ' || CAST(my_msgRef.EXCEPTION_TSTMP AS CHAR) || '
+'; -- Need a carriage return!
+
+			Set OutputLocalEnvironment.Destination.MQDestinationList.DestinationData.queueName = 'SYS_ALERT';
+			SET Environment.Variables.useMQOutputNode = 'Y';
+
+		END IF;
+
+
+		Create Field my_oleRef.MESSAGE_EXCEPTION.INPUT As my_DB_IN_PARAMS;
+
+		CREATE LASTCHILD of my_DB_IN_PARAMS Name 'REPLAY_RULE'  Value 'M';
+		CREATE LASTCHILD of my_DB_IN_PARAMS Name 'REPLAY_TSTMP' Value CURRENT_TIMESTAMP;
+		CREATE LASTCHILD of my_DB_IN_PARAMS Name 'STATUS'       Value finalState;
+		CREATE LASTCHILD of my_DB_IN_PARAMS Name 'EXCEPTION_ID' Value my_msgRef.EXCEPTION_ID;
+
+	    Set my_SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION
+	            			    Set REPLAY_RULE = ?,
+	            			        REPLAY_TSTMP = ?,
+	             			  		STATUS = ?
+	             			  Where EXCEPTION_ID = ?';
+
+
+		CALL cDatabaseWrite(my_SQL_STATEMENT, 'EAI:00093', my_DB_IN_PARAMS);
+
+		-- CARA00000161 Clear DB_?_PARAMS and locations to which these point. Want to avoid ERR:00022 being thrown when we process the next msg with retry limit reached.
+		SET OutputLocalEnvironment.MESSAGE_REPLAY_RULE = NULL;
+		SET OutputLocalEnvironment.MESSAGE_EXCEPTION = NULL;
+		CALL ClearDB_PARAMS(my_DB_IN_PARAMS);
+		CALL ClearDB_PARAMS(my_DB_OUT_PARAMS);
+--		PROPAGATE;
+	END;
+
+
+	CREATE PROCEDURE ReplayThresholdReached(IN msgRef REFERENCE, IN ileRef REFERENCE, IN outRef REFERENCE) BEGIN
+
+		-- Retry limit exceeded
+		-- Update the exception record
+		-- Change to manual replay or T if alert required.
+
+		DECLARE SQL CHAR;
+		DECLARE DBin REFERENCE TO ileRef;
+		DECLARE hostName CHAR COALESCE(Environment.Variables.ENV.HOSTNAME, 'NoHostName');
+		Declare eventNS NAMESPACE '';
+		
+		CREATE LASTCHILD OF DBin AS DBin Name 'DBin';
+
+		CALL CopyMessageHeaders();
+	    CREATE LASTCHILD OF outRef AS outRef DOMAIN 'XMLNS';
+	    CREATE LASTCHILD OF outRef AS outRef TYPE Name NAMESPACE eventNS NAME 'RaiseEventRequest';
+	    CREATE LASTCHILD OF outRef           TYPE Name NAMESPACE eventNS NAME 'EventId' VALUE '7';
+	    CREATE LASTCHILD OF outRef AS outRef TYPE Name NAMESPACE eventNS NAME 'Parameters';
+		CREATE LASTCHILD OF outRef           TYPE Name NAMESPACE eventNS NAME 'Parameter' VALUE
+		'NoThreadInfo ' || hostName || ' NoServerInfo WMBI ExceptionHandling ERROR EAI:Excpetion reported from an automaticly replayed message which has been retried and reached is threshold for an alert. Retries will continue..	Exception Id: ' || CAST(msgRef.EXCEPTION_ID AS CHAR) || ' Exception Timestamp: ' || CAST(msgRef.EXCEPTION_TSTMP AS CHAR) || '
+'; -- Need a carriage return!
+
+
+		Set OutputLocalEnvironment.Destination.MQDestinationList.DestinationData.queueName = 'SYS_ALERT';
+		SET Environment.Variables.useMQOutputNode = 'Y';
+
+		-- update record to indicate exception raised
+
+		CREATE LASTCHILD of DBin Name 'STATUS'       Value 'T';
+		CREATE LASTCHILD of DBin Name 'EXCEPTION_ID' Value msgRef.EXCEPTION_ID;
+
+	    Set SQL = 'Update EAI.MESSAGE_EXCEPTION
+	             		SET STATUS = ?
+	             		Where EXCEPTION_ID = ?';
+
+		CALL cDatabaseWrite(SQL, 'EAI:00093a', DBin);
+		DELETE FIELD DBin;
+		PROPAGATE;
+	END;
+
+END MODULE;
+
+
+
+
+CREATE FILTER MODULE ERR_Replay_Failed_Messages_UseMQOutputNode
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- If the flag that was set in Determine_Message_Type is 'Y', then pass through MQOutput node
+		RETURN (Environment.Variables.useMQOutputNode = 'Y');
+	END;
+
+END MODULE;

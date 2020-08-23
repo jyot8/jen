@@ -1,0 +1,652 @@
+/*******************************************************************************
+ *
+ * Finnair EAI framework
+ *
+********************************************************************************
+*   Flow:      	  ERR_PreProcess_Failure_Message
+*                      
+*   Description:  Exception Management main processing flow                                                                                  
+*
+*   Change history:
+*   ===============
+*
+*   Ver   Date      Defect No  Author  Module  Descripton
+*   ===   ========  =========  ======  ======  ==============
+------------------------------------------------------------------------------*/
+
+DECLARE C_MAX_DB_MSG_SIZE			Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion  
+DECLARE C_MAX_DB_EXCEPTION_SIZE		Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion
+DECLARE C_MAX_DB_RFH_USR_SIZE		Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion
+DECLARE C_MAX_DB_RFH_JMS_SIZE		Constant INTEGER 1000000;	-- limit is 1MB -  reduced to allow for double byte char expansion
+
+DECLARE C_MAX_DB_CLOB_SIZE			Constant INTEGER 52428800;	--  ... set an overall limit for data to match DB table = 50 MB 
+
+
+CREATE COMPUTE MODULE ERR_Process_Failure_Message_Store_Message_And_Exception
+	-- Since a matching exception was found the EXCEPTION table can be filled in fully
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+
+		Declare DB_IN_PARAMS Reference To InputLocalEnvironment; -- Used in database write
+		
+		Declare excRef   	 Reference To Environment;		
+		Declare inusrRFHRef Reference To Environment.MQGetResult.MQRFH2; 		-- in case there is an RFH header USR folder
+		
+		MOVE excRef TO excRef.MQGetResult.XMLNSC.exceptionReport;
+
+		IF NOT LASTMOVE(excRef) THEN
+			MOVE excRef TO excRef.MQGetResult.XMLNS.exceptionReport;
+			IF NOT LASTMOVE(excRef) THEN
+				MOVE excRef TO excRef.MQGetResult.XML.exceptionReport;
+			END IF;
+
+		END IF;
+		
+		Declare evRef    	 Reference To Environment.Variables; -- Always points to Environment Variables
+		Declare inRFHRef 	 Reference To InputRoot.MQRFH2;  -- RFH header 
+		Declare oleRef		 Reference To OutputLocalEnvironment;
+		Declare myRef 		 Reference To OutputRoot;
+
+		Declare SQL_STATEMENT Char ''; -- Insert sql used in passthru
+		Declare BITMessage Char;
+		Declare BITException Char;
+		Declare BITusr Char;
+		Declare BITjms Char;
+		Declare msgTrunc Char 'N';
+		Declare excTrunc Char 'N';
+		Declare usrTrunc Char 'N';
+		Declare jmsTrunc Char 'N';
+		Declare BITMessageT Char;
+		Declare BITExceptionT Char;
+		Declare BITusrT Char;
+		Declare BITjmsT Char;
+		Declare tmpChar Char;
+		Declare autoReplayTimestamp TIMESTAMP;
+		Declare Status Char '0';
+
+		-- Map message data
+		Set BITMessage  = CAST(InputRoot.BLOB.BLOB AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);
+		Set BITMessageT = Substring(BITMessage From 1 for C_MAX_DB_MSG_SIZE);
+
+		-- If they are not the same, it means the message must have been truncated
+		If (BITMessage <> BITMessageT) Then
+			Set msgTrunc = 'Y';
+		End If;
+
+		-- Map exception data
+		Set BITException  = CAST(ASBITSTREAM(excRef.exceptionText ENCODING InputRoot.MQMD.Encoding CCSID InputRoot.MQMD.CodedCharSetId) 
+								AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);		
+		Set BITExceptionT = SUBSTRING(BITException From 1 for C_MAX_DB_EXCEPTION_SIZE);
+
+		-- If they are not the same, it means the message must have been truncated
+		If (BITException <> BITExceptionT) Then
+			Set excTrunc = 'Y';
+		End If;
+
+		-- Map usr data
+		-- Have to make sure the bit of RFH is cast as XML so the bitstream can deal with it properly
+		CREATE LASTCHILD OF oleRef AS myRef DOMAIN 'XML'; 
+		MOVE inRFHRef FIRSTCHILD NAMESPACE * NAME 'usr';
+		IF LASTMOVE(inRFHRef) THEN
+			SET myRef.usr = inRFHRef;
+			Set BITusr	  = CAST(ASBITSTREAM(myRef ENCODING InputRoot.MQMD.Encoding CCSID InputRoot.MQMD.CodedCharSetId) 
+								AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);
+
+			IF LENGTH(inRFHRef) > C_MAX_DB_RFH_USR_SIZE THEN
+				Set BITusrT    = Substring(BITusr From 1 for C_MAX_DB_RFH_USR_SIZE);
+				Set usrTrunc = 'Y';
+			END IF;
+			MOVE inRFHRef PARENT;
+			DELETE FIELD myRef.usr;
+		END IF;
+
+		MOVE inRFHRef FIRSTCHILD NAMESPACE * NAME 'jms';
+		IF LASTMOVE(inRFHRef) THEN
+			SET myRef.jms = inRFHRef;
+			Set BITjms	  = CAST(ASBITSTREAM(myRef ENCODING InputRoot.MQMD.Encoding CCSID InputRoot.MQMD.CodedCharSetId) 
+								AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);
+
+			IF LENGTH(inRFHRef) > C_MAX_DB_RFH_JMS_SIZE THEN
+				Set BITjmsT    = Substring(BITjms From 1 for C_MAX_DB_RFH_JMS_SIZE);
+				Set jmsTrunc = 'Y';
+			END IF;
+			MOVE inRFHRef PARENT;
+			DELETE FIELD myRef.jms;
+		END IF;
+
+		SET evRef.exceptionTimestamp = Current_Timestamp;
+		
+		-- Common procedure to get the replay rule
+		CALL errLookupMsgReplayRule(Coalesce(Trim(Trailing ' ' From excRef.queuedetails.queueName), 'UNKNOWN'), Coalesce(Upper(inusrRFHRef.ServiceType),'ANY'), Substring(excRef.errorCode From 1 For 20), 'ERR:00009', evRef);
+		
+		SET autoReplayTimestamp = evRef.autoReplayTimestamp; 
+		
+        Move inRFHRef To inRFHRef.usr;
+
+        Create Field oleRef.MESSAGE_EXCEPTION.INPUT As DB_IN_PARAMS;
+
+		-- Insert to MESSAGE_EXCEPTION table
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_MESSAGE_TRUNC' 		Value msgTrunc;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_EXCEPTION_TRUNC' 		Value excTrunc;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'MQ_MSG_ID' 				Value InputRoot.MQMD.MsgId;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_USR_FLDR_TRUNC' 		Value usrTrunc;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_JMS_FLDR_TRUNC' 		Value jmsTrunc;
+		
+		-- Check for Correl ID 
+		IF Environment.SavedIDs.MQMD.CorrelId IS NULL OR Substring(Environment.SavedIDs.MQMD.CorrelId FROM 4 FOR 5) = '0000000000' Then
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'CORREL_ID'		Value NULL;		
+		ELSE
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'CORREL_ID'		Value Environment.SavedIDs.MQMD.CorrelId; 
+		END IF;
+				
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_QUEUE' 			Value evRef.replayQueue;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'MESSAGE' 		    	Value BITMessageT;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_RULE' 			Value evRef.replayRule;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_RAISED' 		Value BITExceptionT;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_COUNT' 			Value Coalesce(inRFHRef.ErrReplayCount, 0);
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'QUEUE_NAME' 				Value Trim(Trailing ' ' From excRef.queuedetails.queueName);
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'REQUEST_TYPE'			Value Coalesce(Upper(inRFHRef.ServiceType),'ANY');
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QUEUE'	 		Value InputRoot.MQMD.ReplyToQ;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QMGR'	 		Value InputRoot.MQMD.ReplyToQMgr;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_USR' 				Value COALESCE(BITusrT,BITusr,'N/A');
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_JMS' 				Value COALESCE(BITjmsT,BITjms,'N/A');
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'FORMAT'			 		Value InputRoot.MQMD.Format;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 					Value Status;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_TSTMP' 		Value evRef.exceptionTimestamp;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'AUTO_REPLAY_TSTMP'		Value autoReplayTimestamp;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'ERROR_CODE'	 			Value COALESCE(Substring(excRef.errorCode From 1 For 20),'No error code'); --00.05 - Added COALESCE
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'PUT_DATE'	 			Value COALESCE(InputRoot.MQRFH2.usr.MQMDPutDate, Substring(Cast(InputRoot.MQMD.PutDate As Char) From 7 For 10));
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'PUT_TIME'	 			Value COALESCE(InputRoot.MQRFH2.usr.MQMDPutTime, Substring(Cast(InputRoot.MQMD.PutTime As Char) From 10 For 12));
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'USER_ID'	 				Value InputRoot.MQMD.UserIdentifier;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'COMPONENT_ID'			Value Coalesce(excRef.exceptionText.RecoverableException.RecoverableException.RecoverableException.UserException.Insert.Text, 'UNKNOWN');
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'ERROR_CODE_MATCH_FILTER' Value evRef.errorCodeMatchFilter;
+		CREATE LASTCHILD of DB_IN_PARAMS Name 'OWNER'					Value InputRoot.MQMD.ApplIdentityData;
+		
+		Set SQL_STATEMENT = 'Insert into EAI.MESSAGE_EXCEPTION ' ||
+				            '(IS_MESSAGE_TRUNC,   	   IS_EXCEPTION_TRUNC,  MQ_MSG_ID, 		   IS_USR_FLDR_TRUNC, 	IS_JMS_FLDR_TRUNC,
+						      CORREL_ID,  		  	   REPLAY_QUEUE,		MESSAGE, 		   REPLAY_RULE,
+						      EXCEPTION_RAISED,   	   REPLAY_COUNT, 	    QUEUE_NAME, 	   REQUEST_TYPE,
+						      REPLY_TO_QUEUE, 	  	   REPLY_TO_QMGR, 	    RFH_USR, 		   RFH_JMS, 			FORMAT,
+						      STATUS,		      	   EXCEPTION_TSTMP, 	AUTO_REPLAY_TSTMP, ERROR_CODE,
+						      PUT_DATE,		      	   PUT_TIME, 		    USER_ID,		   COMPONENT_ID,
+						      ERROR_CODE_MATCH_FILTER, OWNER)
+				             Values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+
+		CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00010', DB_IN_PARAMS);
+
+		-- the code after this point is all concerned with inserting truncated messages into the MESSAGE_EXCEPTION_CLOB table
+		-- this is due to be increased from 1MB to 50MB maximum. It is only used in the cases where the Message size is over 1MB.
+		-- We have assumed here that the first 1MB of the exception, and the headers are sufficient.
+
+		------------------------------------------------
+		-- Retrieve the exception id for the log message
+		------------------------------------------------
+		SET Environment.Variables.ExceptionId = THE (SELECT ITEM E.EXCEPTION_ID FROM Database.EAI.MESSAGE_EXCEPTION AS E
+														WHERE E.EXCEPTION_TSTMP = evRef.exceptionTimestamp AND
+														E.QUEUE_NAME = Trim(Trailing ' ' From excRef.queuedetails.queueName));
+		IF (SQLCODE <> 0) THEN
+			THROW USER EXCEPTION VALUES(
+				'ESB',
+				'FAILED: Data exception',
+				'EAI:00011',
+				'soap:Server',
+				'Unable to ascertain exception_id in exception processing',
+				SQLCODE,SQLERRORTEXT,SQLSTATE,SQLNATIVEERROR);
+		END IF;
+
+		-- If Failure Message has been truncated then write the whole thing to the Message Exception CLOB table
+		IF msgTrunc = 'Y' Then
+
+			Create Field oleRef.MESSAGE_EXCEPTION_CLOB.MSGINPUT As DB_IN_PARAMS;
+
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value 'M';
+			-- Just in case the message is too big for the CLOB table, truncate it to the maximum size.
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_DATA'   Value Substring(BITMessage From 1 for C_MAX_DB_CLOB_SIZE);
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_DATA'   Value Environment.Variables.ExceptionId;
+
+			Set SQL_STATEMENT = 'Insert into EAI.MESSAGE_EXCEPTION_CLOB' ||
+				            	'(FIELD_TYPE, FIELD_DATA, EXCEPTION_ID)
+				            	 Values (?,?,?)';
+
+			CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00011', DB_IN_PARAMS);
+
+			-- tidy up
+			DELETE FIELD oleRef.MESSAGE_EXCEPTION_CLOB.MSGINPUT;
+			SET BITMessage = NULL;
+		END IF;
+
+			-- Possible future addition: Exception prioritisation to send a new message to prioritise the exceptions.
+			CALL errSetPriorityMessage(InputRoot, OutputRoot, Environment.Variables.ExceptionId, 'ERRProcessFailure');	
+			
+			SET Environment.Variables.LogTimeStamp = evRef.exceptionTimestamp;
+			SET Environment.AlertMessage 
+				= 'Broker V8 Alert: Exception recorded ' || CAST( evRef.exceptionTimestamp AS CHARACTER )
+				  || '  - Code: ' || COALESCE(Substring(excRef.errorCode From 1 For 20),'No error code')
+				  || '  on queue: ' || Trim(Trailing ' ' From excRef.queuedetails.queueName);
+
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE ERR_Process_Failure_Message_Store_Message
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+
+		Declare DB_IN_PARAMS Reference To InputLocalEnvironment; 	-- Used in database write
+		Declare evRef    	 Reference To Environment.Variables;
+		Declare enRef    	 Reference To Environment.Variables; 
+		Declare inRFHRef 	 Reference To InputRoot.MQRFH2;  		-- RFH header USR folder
+		Declare oleRef		 Reference To OutputLocalEnvironment; 	-- used in db interactions
+		Declare myRef 		 Reference To OutputRoot;
+
+		Declare SQL_STATEMENT Char ''; -- Insert sql used in passthru
+		Declare BITMessage Char;
+		Declare BITMessageT Char;
+		Declare BITusr Char;
+		Declare BITusrT Char;
+		Declare BITjms Char;
+		Declare BITjmsT Char;
+		Declare msgTrunc Char 'N';
+		Declare jmsTrunc Char 'N';
+		Declare usrTrunc Char 'N';
+		DECLARE now TIMESTAMP CURRENT_TIMESTAMP;
+		
+		-- Map message data
+		Set BITMessage  = CAST(InputRoot.BLOB.BLOB AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);		
+		
+		IF LENGTH(BITMessage) > C_MAX_DB_MSG_SIZE THEN
+			Set BITMessageT = Substring(BITMessage From 1 for C_MAX_DB_MSG_SIZE);
+			Set msgTrunc = 'Y';
+		END IF;		
+
+		-- Map usr data
+		-- Have to make sure the bit of RFH is cast as XML so the bitstream can deal with it properly
+		CREATE LASTCHILD OF oleRef AS myRef DOMAIN 'XML';		
+
+		MOVE inRFHRef FIRSTCHILD NAMESPACE * NAME 'usr';
+		IF LASTMOVE(inRFHRef) THEN
+			SET myRef.usr = inRFHRef;
+			Set BITusr	  = CAST(ASBITSTREAM(myRef ENCODING InputRoot.MQMD.Encoding CCSID InputRoot.MQMD.CodedCharSetId) 
+								AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);
+
+			IF LENGTH(inRFHRef) > C_MAX_DB_RFH_USR_SIZE THEN
+				Set BITusrT    = Substring(BITusr From 1 for C_MAX_DB_RFH_USR_SIZE);
+				Set usrTrunc = 'Y';
+			END IF;
+			MOVE inRFHRef PARENT;
+			DELETE FIELD myRef.usr;
+		END IF;
+
+		MOVE inRFHRef FIRSTCHILD NAMESPACE * NAME 'jms';
+		IF LASTMOVE(inRFHRef) THEN
+			SET myRef.jms = inRFHRef;
+			Set BITjms	  = CAST(ASBITSTREAM(myRef ENCODING InputRoot.MQMD.Encoding CCSID InputRoot.MQMD.CodedCharSetId) 
+								AS CHAR CCSID InputRoot.MQMD.CodedCharSetId ENCODING InputRoot.MQMD.Encoding);
+
+			IF LENGTH(inRFHRef) > C_MAX_DB_RFH_JMS_SIZE THEN
+				Set BITjmsT    = Substring(BITjms From 1 for C_MAX_DB_RFH_JMS_SIZE);
+				Set jmsTrunc = 'Y';
+			END IF;
+			MOVE inRFHRef PARENT;
+			DELETE FIELD myRef;
+		END IF;
+
+		Move inRFHRef To inRFHRef.usr;
+		
+		Create Field oleRef.MESSAGE_EXCEPTION.READ As DB_IN_PARAMS;
+		
+		CREATE LASTCHILD of DB_IN_PARAMS.INPUT Name 'MQ_MSG_ID' Value InputRoot.MQMD.MsgId; 
+		CREATE LASTCHILD of DB_IN_PARAMS.INPUT Name 'CORREL_ID' Value InputRoot.MQMD.MsgId;  -- Should compare the exception mgs correlid with the failue msgs' msg id
+		CREATE LASTCHILD of DB_IN_PARAMS.INPUT Name 'STATUS1' 	Value 'B';
+		CREATE LASTCHILD of DB_IN_PARAMS.INPUT Name 'STATUS2' 	Value 'R';
+		CREATE LASTCHILD of DB_IN_PARAMS.INPUT Name 'STATUS3' 	Value 'P';
+		
+		-- Execeptions stored without the input message would not have any values in the reply to q and reply to qmgr field
+		Call cDatabaseRead('SELECT EXCEPTION_ID, REPLAY_RULE, STATUS FROM EAI.MESSAGE_EXCEPTION 
+							WHERE (MQ_MSG_ID = ? OR CORREL_ID = ?) AND STATUS NOT IN (?, ?, ?)', -- 
+							FALSE, 'EAI:10008', DB_IN_PARAMS.INPUT, DB_IN_PARAMS, 'OUTPUT');
+		
+		IF CARDINALITY(DB_IN_PARAMS.OUTPUT.[]) <> 0 THEN
+			
+			Create Field oleRef.MESSAGE_EXCEPTION.INPUT As DB_IN_PARAMS;
+	
+			-- For automatic replay where the status was deferred the status is now changed back to initial because we have the input messgae details 
+			IF oleRef.MESSAGE_EXCEPTION.READ.OUTPUT.REPLAY_RULE = 'A' AND oleRef.MESSAGE_EXCEPTION.READ.OUTPUT.STATUS = 'D' THEN
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 	Value '0';
+			ELSE
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 	Value oleRef.MESSAGE_EXCEPTION.READ.OUTPUT.STATUS;
+			END IF;
+			
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_MESSAGE_TRUNC' 	Value msgTrunc;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_USR_FLDR_TRUNC' 	Value usrTrunc;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_JMS_FLDR_TRUNC' 	Value jmsTrunc;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'MESSAGE' 			Value COALESCE(BITMessageT,BITMessage) ;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REQUEST_TYPE'		Value Coalesce(Upper(inRFHRef.ServiceType),'ANY');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QUEUE'	 	Value Coalesce(InputRoot.MQMD.ReplyToQ, NULL);
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QMGR'	 	Value InputRoot.MQMD.ReplyToQMgr;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_USR' 			Value COALESCE(BITusrT, BITusr,'N/A');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_JMS' 			Value COALESCE(BITjmsT, BITjms,'N/A');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FORMAT'			 	Value InputRoot.MQMD.Format;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'OWNER'			 	Value InputRoot.MQMD.ApplIdentityData;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_ID'	 	Value oleRef.MESSAGE_EXCEPTION.READ.OUTPUT.EXCEPTION_ID;
+
+			Set SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION Set ' ||
+					            'STATUS = ?, IS_MESSAGE_TRUNC = ?, IS_USR_FLDR_TRUNC = ?, IS_JMS_FLDR_TRUNC = ?, 
+					             MESSAGE = ?, REQUEST_TYPE = ?,  REPLY_TO_QUEUE = ?,  REPLY_TO_QMGR = ?, 	
+					             RFH_USR = ?, RFH_JMS = ?,  FORMAT = ?, OWNER = ?
+					             Where EXCEPTION_ID = ?';
+			
+			CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00058', DB_IN_PARAMS);
+	
+			SET Environment.Variables.ExceptionId = oleRef.MESSAGE_EXCEPTION.READ.OUTPUT.EXCEPTION_ID;
+	
+		ELSE 
+		
+			Create Field oleRef.MESSAGE_EXCEPTION.INPUT As DB_IN_PARAMS;
+	
+			
+			
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_MESSAGE_TRUNC' 	Value msgTrunc;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_EXCEPTION_TRUNC'  Value 'N';  -- there is no exception message
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'MQ_MSG_ID' 			Value InputRoot.MQMD.MsgId;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_USR_FLDR_TRUNC' 	Value usrTrunc;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_JMS_FLDR_TRUNC' 	Value jmsTrunc;
+
+			-- Check for Correl ID 
+			IF Environment.SavedIDs.MQMD.CorrelId IS NULL OR Substring(Environment.SavedIDs.MQMD.CorrelId FROM 4 FOR 5) = '0000000000' Then
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'CORREL_ID'		Value NULL;		
+			ELSE
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'CORREL_ID'		Value Environment.SavedIDs.MQMD.CorrelId; 
+			END IF;
+			
+			
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_QUEUE' 		Value 'UNDEFINED';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'MESSAGE' 			Value COALESCE(BITMessageT,BITMessage) ;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_RULE' 		Value 'X';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLAY_COUNT' 		Value Coalesce(inRFHRef.ErrReplayCount, 0);
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_RAISED'	Value 'No matching exception record found for this failure';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'QUEUE_NAME' 			Value 'UNKNOWN';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REQUEST_TYPE'		Value Coalesce(Upper(inRFHRef.ServiceType),'ANY');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QUEUE'	 	Value Coalesce(InputRoot.MQMD.ReplyToQ, NULL);
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QMGR'	 	Value InputRoot.MQMD.ReplyToQMgr;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_USR' 			Value COALESCE(BITusrT, BITusr,'N/A');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_JMS' 			Value COALESCE(BITjmsT, BITjms,'N/A');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FORMAT'			 	Value InputRoot.MQMD.Format;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 				Value Coalesce(evRef.status, '0');
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_TSTMP' 	Value now;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'PUT_DATE'	 		Value COALESCE(InputRoot.MQRFH2.usr.MQMDPutDate, Substring(Cast(InputRoot.MQMD.PutDate As Char) From 7 For 10));
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'PUT_TIME'	 		Value COALESCE(InputRoot.MQRFH2.usr.MQMDPutTime, Substring(Cast(InputRoot.MQMD.PutTime As Char) From 10 For 12));
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'USER_ID'	 			Value InputRoot.MQMD.UserIdentifier;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'ASSIGNMENT' 			Value NULL;
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'ERROR_CODE'	 		Value 'NULL';  -- inserted as a string as it's a not null column
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'COMPONENT_ID' 		Value 'UNKNOWN';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'ERROR_CODE_MATCH_FILTER'	Value 'NULL';
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'OWNER'				Value InputRoot.MQMD.ApplIdentityData;
+	
+			Set SQL_STATEMENT = 'Insert into EAI.MESSAGE_EXCEPTION' ||
+					            '(IS_MESSAGE_TRUNC, IS_EXCEPTION_TRUNC, MQ_MSG_ID, 	 	 IS_USR_FLDR_TRUNC, IS_JMS_FLDR_TRUNC, CORREL_ID,
+								  REPLAY_QUEUE, 	MESSAGE,	 		REPLAY_RULE, 	 REPLAY_COUNT, 		EXCEPTION_RAISED,
+								  QUEUE_NAME,      	REQUEST_TYPE, 		REPLY_TO_QUEUE,  REPLY_TO_QMGR, 	RFH_USR,             RFH_JMS,
+								  FORMAT,  		    STATUS,			    EXCEPTION_TSTMP, PUT_DATE,    	    PUT_TIME,
+								  USER_ID,			ASSIGNMENT, 		ERROR_CODE,		 COMPONENT_ID, ERROR_CODE_MATCH_FILTER, OWNER)
+					             Values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+		
+			CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00058', DB_IN_PARAMS);
+	
+	
+			------------------------------------------------
+			-- Retrieve the exception id for the log message
+			------------------------------------------------
+			SET Environment.Variables.ExceptionId = THE (SELECT ITEM E.EXCEPTION_ID FROM Database.EAI.MESSAGE_EXCEPTION AS E
+															WHERE E.EXCEPTION_TSTMP = now AND
+															E.QUEUE_NAME = 'UNKNOWN');
+	
+
+			-- This logic is for a second check in the database to find any matching message for the exception record inserted without any message 
+			-- detials. In some cases the message id/ correl id representation in the database is not exactly the same as in the MQMD header. This 
+			-- is typically when it contains certain special chars. In these circumstances though they are exactly the same the previous query to 
+			-- check for existing record do not match because of the representation being different. So, now once the exception details are inserted 
+			-- into the database we do another check within the database to find the match
+			
+			-- Identify the exception id of the current record
+			Create Field oleRef.MESSAGE_EXCEPTION.READ2 As DB_IN_PARAMS;
+			
+			SET DB_IN_PARAMS.INPUT.EXCEPTION_ID = Environment.Variables.ExceptionId;	
+			
+			-- Check that if there are any matches with the message id/ correlation id of the exception and failure message in the database
+			Set SQL_STATEMENT = '	SELECT 	MEX.EXCEPTION_ID, MEX.REPLAY_RULE, MEX.STATUS 
+									FROM 	EAI.MESSAGE_EXCEPTION AS MEX, EAI.MESSAGE_EXCEPTION AS MFM
+									WHERE	MFM.EXCEPTION_ID = ?
+									AND		MEX.REPLY_TO_QUEUE IS NULL AND MEX.REPLY_TO_QMGR IS NULL
+									AND	   (MFM.MQ_MSG_ID = MEX.MQ_MSG_ID
+									OR		MFM.CORREL_ID = MEX.CORREL_ID
+									OR		MFM.MQ_MSG_ID = MEX.CORREL_ID
+									OR		MFM.CORREL_ID = MEX.MQ_MSG_ID)';
+									
+			Call cDatabaseRead(SQL_STATEMENT, FALSE, 'EAI:10008', DB_IN_PARAMS.INPUT, DB_IN_PARAMS, 'OUTPUT');
+			
+			--If record found, update the same record in the database
+			IF CARDINALITY(DB_IN_PARAMS.OUTPUT.[]) <> 0 THEN
+				
+				Create Field oleRef.MESSAGE_EXCEPTION.INPUT2 As DB_IN_PARAMS;
+				
+				-- For automatic replay where the status was deferred the status is now changed back to initial because we have the input messgae details 
+				IF oleRef.MESSAGE_EXCEPTION.READ2.OUTPUT.REPLAY_RULE = 'A' AND oleRef.MESSAGE_EXCEPTION.READ2.OUTPUT.STATUS = 'D' THEN
+					CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 	Value '0';
+				ELSE
+					CREATE LASTCHILD of DB_IN_PARAMS Name 'STATUS' 	Value oleRef.MESSAGE_EXCEPTION.READ2.OUTPUT.STATUS;
+				END IF;
+				
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_MESSAGE_TRUNC' 	Value msgTrunc;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_USR_FLDR_TRUNC' 	Value usrTrunc;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'IS_JMS_FLDR_TRUNC' 	Value jmsTrunc;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'MESSAGE' 			Value COALESCE(BITMessageT,BITMessage) ;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'REQUEST_TYPE'		Value Coalesce(Upper(inRFHRef.ServiceType),'ANY');
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QUEUE'	 	Value Coalesce(InputRoot.MQMD.ReplyToQ, NULL);
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'REPLY_TO_QMGR'	 	Value InputRoot.MQMD.ReplyToQMgr;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_USR' 			Value COALESCE(BITusrT, BITusr,'N/A');
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'RFH_JMS' 			Value COALESCE(BITjmsT, BITjms,'N/A');
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'FORMAT'			 	Value InputRoot.MQMD.Format;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'OWNER'			 	Value InputRoot.MQMD.ApplIdentityData;
+				CREATE LASTCHILD of DB_IN_PARAMS Name 'EXCEPTION_ID'	 	Value oleRef.MESSAGE_EXCEPTION.READ2.OUTPUT.EXCEPTION_ID;
+	
+				-- Update the record which only had the message details with the exception details after the match
+				Set SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION Set ' ||
+						            'STATUS = ?, IS_MESSAGE_TRUNC = ?, IS_USR_FLDR_TRUNC = ?, IS_JMS_FLDR_TRUNC = ?, 
+						             MESSAGE = ?, REQUEST_TYPE = ?,  REPLY_TO_QUEUE = ?,  REPLY_TO_QMGR = ?, 	
+						             RFH_USR = ?, RFH_JMS = ?,  FORMAT = ?, OWNER = ?
+						             Where EXCEPTION_ID = ?';
+				
+				CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00058', DB_IN_PARAMS);
+		
+
+				-- Delete the duplicate exception record without the message details as now we have found a matching message
+				SET SQL_STATEMENT = 'DELETE FROM EAI.MESSAGE_EXCEPTION WHERE EXCEPTION_ID = ?' ;
+				
+				CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:10009', oleRef.MESSAGE_EXCEPTION.READ2.INPUT);				
+								
+				SET Environment.Variables.ExceptionId = oleRef.MESSAGE_EXCEPTION.READ2.OUTPUT.EXCEPTION_ID;
+
+			END IF;
+			
+			Create Field oleRef.EXCEPTION_MAPPING_TYPE As DB_IN_PARAMS;
+			SET SQL_STATEMENT = 'SELECT SEARCH_TEXT, QUEUE_NAME, ERROR_CODE, ERROR_MESSAGE FROM EAI.EXCEPTION_MAPPING_TYPE WHERE PARENT_MAPPING_ID IS NULL';
+			Call cDatabaseRead(SQL_STATEMENT, FALSE, 'ERR:10010', DB_IN_PARAMS, DB_IN_PARAMS, 'OUTPUT');			
+			
+			MOVE DB_IN_PARAMS FIRSTCHILD;
+			X: WHILE LASTMOVE(DB_IN_PARAMS) DO
+				
+				IF POSITION(DB_IN_PARAMS.SEARCH_TEXT IN BITMessage) > 0 OR
+					POSITION(CAST(DB_IN_PARAMS.SEARCH_TEXT AS BLOB CCSID 1200) IN InputRoot.BLOB.BLOB) > 0 THEN
+
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.QUEUE_NAME 			= COALESCE(DB_IN_PARAMS.QUEUE_NAME, 'UNKNOWN');
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.ERROR_CODE 			= COALESCE(DB_IN_PARAMS.ERROR_CODE, 'NULL');
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.EXCEPTION_RAISED 	= COALESCE(DB_IN_PARAMS.ERROR_MESSAGE, 'No matching exception record found for this failure');
+					
+					CREATE FIELD enRef.MESSAGE_REPLAY As enRef;
+
+					-- Check for the existing replay rules based on the derived queue name and error code
+					CALL errLookupMsgReplayRule(oleRef.MESSAGE_EXCEPTION.INPUT3.QUEUE_NAME, 'ANY', oleRef.MESSAGE_EXCEPTION.INPUT3.ERROR_CODE, 'ERR:10012', enRef);
+					
+					-- Pass on the parameters from the message_replay_rule table to be inserted into the Message_exception table.
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.REPLAY_RULE 		= enRef.replayRule;
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.REPLAY_QUEUE 		= enRef.replayQueue;
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.AUTOREPLAYTSTMP 	= enRef.autoReplayTimestamp;
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.STATUS 				= enRef.Status;
+					
+					SET oleRef.MESSAGE_EXCEPTION.INPUT3.EXCEPTION_ID		= Environment.Variables.ExceptionId;
+					
+					-- Update the update statement to include the derived values.
+					Set SQL_STATEMENT = 'Update EAI.MESSAGE_EXCEPTION Set QUEUE_NAME = ?, ERROR_CODE = ?, EXCEPTION_RAISED = ?, REPLAY_RULE = ?, REPLAY_QUEUE = ?,  AUTO_REPLAY_TSTMP = ?, STATUS = ? Where EXCEPTION_ID = ?';					
+					CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:10011', oleRef.MESSAGE_EXCEPTION.INPUT3);
+					
+					LEAVE X;
+					
+				END IF;
+				
+				MOVE DB_IN_PARAMS NEXTSIBLING;
+				
+			END WHILE;
+			
+		END IF;
+		
+		-- If Failure Message has been truncated then write the whole thing to the Message Exception CLOB table
+		IF msgTrunc = 'Y' Then
+
+			Create Field oleRef.MESSAGE_EXCEPTION_CLOB.MSGINPUT As DB_IN_PARAMS;
+
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_TYPE'   Value 'M';
+			-- Just in case the message is too big for the CLOB table, truncate it to the maximum size.
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_DATA'   Value Substring(BITMessage From 1 for C_MAX_DB_CLOB_SIZE);
+			CREATE LASTCHILD of DB_IN_PARAMS Name 'FIELD_DATA'   Value Environment.Variables.ExceptionId;
+
+			Set SQL_STATEMENT = 'Insert into EAI.MESSAGE_EXCEPTION_CLOB' ||
+				            	'(FIELD_TYPE, FIELD_DATA, EXCEPTION_ID)
+				            	 Values (?,?,?)';
+
+			CALL cDatabaseWrite(SQL_STATEMENT, 'EAI:00011', DB_IN_PARAMS);
+
+			-- tidy up
+			DELETE FIELD oleRef.MESSAGE_EXCEPTION_CLOB.MSGINPUT;
+			SET BITMessage = NULL;
+
+		END IF;
+
+		CALL errSetPriorityMessage(InputRoot, OutputRoot, Environment.Variables.ExceptionId, 'ERRProcessFailure');	
+
+		SET Environment.AlertMessage 
+			= 'Broker V8 Alert: Exception recorded ' || CAST( now AS CHARACTER ) 
+			  || '  No further details are available at this time, please see v8 broker database or lsexcp';
+
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+	
+END MODULE;
+
+
+
+CREATE COMPUTE MODULE ERR_Process_Failure_Message_TivoliAlert
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- RJB: Copied from another procedure - not currently used as Tivoli monitors queues currently
+		
+		------------------------------------------------------------------------------
+		-- This module will raise a tivoli alert if a manual replay message comes
+		-- in that is setup with a tivoli alert requirement. Automatic replay tivoli
+		-- alerts are generated during  the replay processing not here
+		------------------------------------------------------------------------------
+
+		DECLARE outRef REFERENCE TO OutputRoot;
+		DECLARE evRef REFERENCE TO Environment.Variables;    -- Environment Variables
+		DECLARE excRef REFERENCE To Environment.exceptionMessage.XML.XML.exceptionReport;
+		
+		DECLARE enVal 				REFERENCE TO Environment;
+		CALL getEnvValues(enVal);
+				
+		DECLARE hostName CHAR COALESCE(enVal.ERR_ENV_HOSTNAME, 'NoHostName');
+
+		DECLARE queueName, errorCode CHAR;
+		DECLARE eventNS CHAR;
+				
+		SET queueName = Coalesce(Trim(Trailing ' ' From excRef.queuedetails.queueName), 'UNKNOWN');
+		SET errorCode = Substring(excRef.errorCode From 1 For 20);
+		SET eventNS = COALESCE(enVal.ERR_EVENT_NS, 'http://raiseevent.unknown');
+		
+		IF evRef.replayRule = 'M' and evRef.tivoliAlert = 'Y' THEN
+
+
+			CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD';
+			SET outRef.MQMD.Version = 2;
+			SET outRef.MQMD.Format = MQFMT_STRING;
+
+		    CREATE LASTCHILD OF outRef AS outRef DOMAIN 'XMLNSC'; 
+		    CREATE LASTCHILD OF outRef AS outRef TYPE Name NAMESPACE eventNS NAME 'RaiseEventRequest';
+		    CREATE LASTCHILD OF outRef           TYPE Name NAMESPACE eventNS NAME 'EventId' VALUE '7';
+		    CREATE LASTCHILD OF outRef AS outRef TYPE Name NAMESPACE eventNS NAME 'Parameters';
+			CREATE LASTCHILD OF outRef           TYPE Name NAMESPACE eventNS NAME 'Parameter' VALUE
+			'NoThreadInfo ' || hostName || ' NoServerInfo EAI ExceptionHandling ERROR - CARA:Exception reported with a manual replay rule requiring intervention. Queue Name: ' || queueName ||' Error Code: ' || errorCode ||' ExceptionId: ' || CAST(Environment.Variables.ExceptionId AS CHAR)||' Exception Timestamp: ' || CAST(evRef.exceptionTimestamp AS CHAR) || '
+'; -- Need a carriage return
+			SET OutputLocalEnvironment = InputLocalEnvironment;			
+
+		ELSE
+			RETURN FALSE;
+		END IF;
+
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE ERR_Process_Failure_Message_Store_and_set_IDs
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+	    CALL CopyEntireMessage();
+	    
+	    -- Store the original Correlation Id (in fact, save all the IDs, just in case) for use in saves later
+		SET Environment.SavedIDs.MQMD = InputRoot.MQMD;	    
+	    
+	    -- Set the Correlation Id for searching to be the Message Id of the message we are trying to match up
+		SET OutputRoot.MQMD.CorrelId = InputRoot.MQMD.MsgId;
+	    
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

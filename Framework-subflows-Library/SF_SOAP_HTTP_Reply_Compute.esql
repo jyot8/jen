@@ -1,0 +1,29 @@
+
+
+CREATE COMPUTE MODULE SF_SOAP_HTTP_Reply_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot = Environment.EAIframework.Context.OriginalRoot;
+		DECLARE soapNs  NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';	
+		
+		IF Environment.EAIframework.Context.InputType = 'SOAP' THEN
+			
+			DECLARE refBody REFERENCE TO OutputRoot.SOAP.Body;	
+			SET refBody.*[1] = InputRoot.XMLNS.*[1];
+			RETURN TRUE;	-- Propagate output to default out terminal
+			
+		ELSEIF Environment.EAIframework.Context.InputType = 'httpSOAP' THEN
+			
+			DECLARE refBody REFERENCE TO OutputRoot.XMLNS.soapNs:Envelope.soapNs:Body;	
+			SET refBody.*[1] = InputRoot.XMLNS.*[1];
+			-- fall through to non-soap propagation
+			
+		ELSE
+			SET OutputRoot = InputRoot;
+		END IF;
+		
+		PROPAGATE TO TERMINAL 1;				-- send to non-SOAP output terminal
+		
+		RETURN FALSE;
+	END;
+END MODULE;

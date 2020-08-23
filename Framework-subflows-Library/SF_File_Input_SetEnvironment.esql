@@ -1,0 +1,47 @@
+-- DO NOT MODIFY----
+-- Version history--- 
+--$MQSI $Log: SF_File_Input_SetEnvironment.esql,v $
+--$MQSI Revision 1.1  2014/12/15 12:23:11  panu.hyrylainen
+--$MQSI First version
+--$MQSI
+--Version history end---
+
+CREATE COMPUTE MODULE SF_File_Input_SetEnvironment
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+----------------------------------------------------------------------------------------------
+-------------------------------- DO NOT MODIFY ---------------------------------------------
+DECLARE SF_File_Input_SetEnvironmen_esql CHARACTER '$MQSI SF_File_Input_SetEnvironmen_esql = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_File_Input_SetEnvironment.esql,v 1.1 2014/12/15 12:23:11 panu.hyrylainen Exp $ MQSI$';
+------------IT WILL UPDATED WHEN COMMIT/CHECK IN TO THE CVS--------
+
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage();
+		
+		-- This compute node is run in Local Environment mode to avoid performace issues copying data
+		-- (it is not necessary to copy the output root 
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		-- So that subsequent sub-flows (eg. output reply) know what type of request this is:
+		SET Environment.EAIframework.Context.InputType = 'File';
+		
+		-- IntegrationType = Fixed value of File name and Pattern (e.g. test*)
+		SET Environment.IntegrationType = REPLACE(InputLocalEnvironment.File.Name, InputLocalEnvironment.Wildcard.WildcardMatch, '*');
+		
+		
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

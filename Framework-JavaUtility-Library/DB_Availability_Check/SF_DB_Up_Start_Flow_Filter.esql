@@ -1,0 +1,26 @@
+
+
+CREATE FILTER MODULE SF_DB_Up_Start_Flow_Filter
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+
+	BEGIN
+		 DECLARE v_int INTEGER;
+		 
+		----------- CHECK STORED PROCEDURE --------------
+     CALL check_DB(v_int);
+     
+     IF (v_int >= 0) THEN
+     	
+     	RETURN TRUE ;
+      	
+     END IF;
+		
+		
+	END;
+
+
+END MODULE;
+
+CREATE PROCEDURE check_DB(OUT checkrows INTEGER )
+LANGUAGE DATABASE
+EXTERNAL NAME "TKADM.CHECK_DB" ;

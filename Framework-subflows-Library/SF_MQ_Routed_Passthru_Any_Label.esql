@@ -1,0 +1,15 @@
+
+
+CREATE FILTER MODULE SF_MQ_Routed_Passthru_Any_Label
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		IF ( LocalEnvironment.Destination.RouterList.DestinationData[1].labelname = 'NONE' 
+			OR LocalEnvironment.Destination.RouterList.DestinationData[1].labelname = 'ANY'
+			)
+			THEN RETURN FALSE;
+		END IF;
+	
+		RETURN TRUE;
+	END;
+
+END MODULE;

@@ -1,0 +1,155 @@
+
+
+CREATE COMPUTE MODULE SF_Broker_Logging_Format_Log_Message
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+	-- Create MQMD header
+	SET OutputRoot = NULL;
+	CREATE NEXTSIBLING OF OutputRoot.Properties DOMAIN 'MQMD'; 
+
+	SET OutputRoot.MQMD.Version = MQMD_CURRENT_VERSION; 
+--	SET OutputRoot.MQMD.StrucId = MQMD_STRUC_ID; 
+	SET OutputRoot.MQMD.MsgId 	= MQMI_NONE;	-- queue manager will generate
+	SET OutputRoot.MQMD.CorrelId= COALESCE( InputRoot.MQMD.MsgId, Environment.InputMessageId, InputLocalEnvironment.Destination.HTTP.RequestIdentifier, MQCI_NONE);
+	SET OutputRoot.MQMD.Format	= 'MQSTR   ';
+	SET OutputRoot.MQMD.CodedCharSetId = MQCCSI_Q_MGR; 
+	SET OutputRoot.MQMD.Encoding= 273;
+	SET OutputRoot.MQMD.MsgType = MQMT_DATAGRAM;
+	SET OutputRoot.MQMD.PutDate = CURRENT_DATE;
+	SET OutputRoot.MQMD.PutTime = CAST(CURRENT_TIME AS CHAR FORMAT 'HHmmssSS');
+
+	-- Create XML Declaration and Encoding
+	Create Field OutputRoot.XML.(XML.XmlDecl)XML;
+	Set OutputRoot.XML.(XML.XmlDecl).(XML.Version)    = '1.0'; 
+	Set OutputRoot.XML.(XML.XmlDecl).(XML."Encoding") = 'UTF-8';-- Defect 44590
+
+	-- Log Input message to LOGGING
+
+	-- Log LoggingIndex 0=IB, 0<OB
+  	SET OutputRoot.XML.Message.LoggingIndex = Environment.LoggingIndex;
+
+	-- Log Keyvalues to LOGGING
+	IF Environment.LoggingIndex = 0 THEN
+
+	-- Set IB Keyvalues
+
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_QUALIFIER_INTEGRATION = Trim(Environment.Routing[1].SENDER_QUALIFIER_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_CODE_INTEGRATION = Trim(Environment.Routing[1].SENDER_CODE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_QUALIFIER_INTEGRATION = Trim(Environment.Routing[1].RECEIVER_QUALIFIER_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_CODE_INTEGRATION = Trim(Environment.Routing[1].RECEIVER_CODE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_TYPE_INTEGRATION = Trim(Environment.Routing[1].MESSAGE_TYPE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_VERSION_INTEGRATION =  Environment.Routing[1].MESSAGE_VERSION_INTEGRATION;
+	  SET OutputRoot.XML.Message.Keyvalues.COMPANY_CODE_INTEGRATION = Trim(Environment.Routing[1].COMPANY_CODE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.LOG_LEVEL_INTEGRATION =  Environment.Routing[1].LOG_LEVEL_INTEGRATION;
+	  SET OutputRoot.XML.Message.Keyvalues.KEY_INTEGRATION = Environment.Routing[1].KEY_INTEGRATION;
+  
+	-- Clear OB Keyvalues
+
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_QUALIFIER_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_CODE_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_QUALIFIER_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_CODE_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_TYPE_ROUTING = ' ';
+ 	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_VERSION_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.COMPANY_CODE_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.LOG_LEVEL_ROUTING = ' ';
+	  SET OutputRoot.XML.Message.Keyvalues.KEY_ROUTING = ' ';
+
+	-- IB logvalues
+
+	  SET OutputRoot.XML.Message.IB.Logvalues.* = Environment.IB.Logvalues.*;
+
+	ELSE
+
+	-- Set IB Keyvalues
+
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_QUALIFIER_INTEGRATION = Trim(Environment.Routing[Environment.LoggingIndex].SENDER_QUALIFIER_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_CODE_INTEGRATION = Trim(Environment.Routing[Environment.LoggingIndex].SENDER_CODE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_QUALIFIER_INTEGRATION = Trim(Environment.Routing[Environment.LoggingIndex].RECEIVER_QUALIFIER_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_CODE_INTEGRATION = Trim(Environment.Routing[Environment.LoggingIndex].RECEIVER_CODE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_TYPE_INTEGRATION = Trim(Environment.Routing[Environment.LoggingIndex].MESSAGE_TYPE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_VERSION_INTEGRATION =  Environment.Routing[Environment.LoggingIndex].MESSAGE_VERSION_INTEGRATION;
+	  SET OutputRoot.XML.Message.Keyvalues.COMPANY_CODE_INTEGRATION = Trim(Environment.Routing[Environment.LoggingIndex].COMPANY_CODE_INTEGRATION);
+	  SET OutputRoot.XML.Message.Keyvalues.LOG_LEVEL_INTEGRATION = Environment.Routing[Environment.LoggingIndex].LOG_LEVEL_INTEGRATION;
+	  SET OutputRoot.XML.Message.Keyvalues.KEY_INTEGRATION = Environment.Routing[Environment.LoggingIndex].KEY_INTEGRATION;
+ 
+	-- Set OB Keyvalues
+
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_QUALIFIER_ROUTING =    Trim(Environment.Routing[Environment.LoggingIndex].SENDER_QUALIFIER_ROUTING);
+	  SET OutputRoot.XML.Message.Keyvalues.SENDER_CODE_ROUTING = Trim(Environment.Routing[Environment.LoggingIndex].SENDER_CODE_ROUTING);
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_QUALIFIER_ROUTING = Trim(Environment.Routing[Environment.LoggingIndex].RECEIVER_QUALIFIER_ROUTING);
+	  SET OutputRoot.XML.Message.Keyvalues.RECEIVER_CODE_ROUTING = Trim(Environment.Routing[Environment.LoggingIndex].RECEIVER_CODE_ROUTING);
+	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_TYPE_ROUTING = Trim(Environment.Routing[Environment.LoggingIndex].MESSAGE_TYPE_ROUTING);
+ 	  SET OutputRoot.XML.Message.Keyvalues.MESSAGE_VERSION_ROUTING =  Environment.Routing[Environment.LoggingIndex].MESSAGE_VERSION_ROUTING;
+	  SET OutputRoot.XML.Message.Keyvalues.COMPANY_CODE_ROUTING = Trim(Environment.Routing[Environment.LoggingIndex].COMPANY_CODE_ROUTING);
+	  SET OutputRoot.XML.Message.Keyvalues.LOG_LEVEL_ROUTING =  Environment.Routing[Environment.LoggingIndex].LOG_LEVEL_ROUTING;
+	  SET OutputRoot.XML.Message.Keyvalues.KEY_ROUTING =  Environment.Routing[Environment.LoggingIndex].KEY_ROUTING;
+
+	-- Set Logvalues (myös IB koska sen tietoa tarvitaan LOGGING talletuksessa.)
+
+	  SET OutputRoot.XML.Message.IB.Logvalues.* = Environment.IB.Logvalues.*;
+	  SET Environment.Routing[Environment.LoggingIndex].Logvalues.LOGGING.START_TIME = COALESCE(Environment.PrevTime, CURRENT_TIMESTAMP);
+	  SET Environment.Routing[Environment.LoggingIndex].Logvalues.LOGGING.END_TIME = CURRENT_TIMESTAMP;
+	  SET OutputRoot.XML.Message.OB.Logvalues.* = Environment.Routing[Environment.LoggingIndex].Logvalues.*;
+
+	-- Clear written OB statistics
+
+	  SET Environment.Routing[Environment.LoggingIndex].Logvalues.LOGGING.MESSAGE_OUT_COUNT = '0';
+	  SET Environment.Routing[Environment.LoggingIndex].Logvalues.LOGGING.CHARACTER_OUT_COUNT = '0';
+	  SET Environment.Routing[Environment.LoggingIndex].Logvalues.LOGGING.END_TIME = '';
+
+	END IF;
+
+	DECLARE TIME1 TIMESTAMP;
+	DECLARE TIME2 TIMESTAMP;
+	DECLARE DURATION INTEGER;
+
+	SET TIME1 = CURRENT_TIMESTAMP;
+
+	IF Environment.LoggingIndex = 0 THEN
+	  SET TIME2 = Environment.IB.Logvalues.LOGGING.START_TIME;
+	ELSE 
+	  SET TIME2 = Environment.PrevTime;
+	  SET OutputRoot.XML.Message.PrevTime = Environment.PrevTime; 
+	END IF;
+
+	SET Environment.PrevTime = TIME1;
+
+	SET DURATION = (TIME1 - TIME2) SECOND * 1000;
+
+	SET OutputRoot.XML.Message.LogTime = TIME1;
+	SET OutputRoot.XML.Message.Duration = DURATION;
+
+	RETURN TRUE;
+	END;
+
+END MODULE;
+
+CREATE COMPUTE MODULE SF_Broker_Logging_CheckLogLevel
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot=InputRoot;
+		
+		DECLARE EffectiveLevel	INTEGER	0;
+		IF (Environment.LoggingIndex = 0) THEN
+			SET EffectiveLevel = Environment.Routing[1].LOG_LEVEL_INTEGRATION;
+		ELSEIF (Environment.LoggingIndex > 0) THEN
+			SET EffectiveLevel = Environment.Routing[Environment.LoggingIndex].LOG_LEVEL_ROUTING;
+			-- In order to avoid 2 or more copies of the input in the Warehouse, 
+			-- restrict warehousing to first routing only if it has already been warehoused
+			IF (Environment.LoggingIndex > 1) and (EffectiveLevel > 1) and (Environment.Routing[1].LOG_LEVEL_ROUTING > 1) THEN
+				SET EffectiveLevel = 1;
+			END IF;
+		END IF;
+		
+		PROPAGATE TO TERMINAL (EffectiveLevel);
+		RETURN FALSE;
+		
+	END;
+
+END MODULE;
+
+
+
+

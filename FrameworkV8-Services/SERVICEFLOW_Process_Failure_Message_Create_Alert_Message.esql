@@ -1,0 +1,33 @@
+
+
+CREATE COMPUTE MODULE SERVICEFLOW_Process_Failure_Message_Create_Alert_Message
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		-- Create a simple message to raise an alert with Tivoli
+		DECLARE alertMessage CHARACTER;
+		DECLARE outRef Reference to OutputLocalEnvironment; -- moved later to output message
+
+		SET alertMessage = COALESCE( Environment.AlertMessage,  
+			'Broker V8 Alert: Exception processing error, please see /brokerv8/logs and SYS_HARD_FAILURE queue.' );
+
+		Set OutputRoot.Properties    		= InputRoot.Properties;
+		Set OutputRoot.MQMD		    		= InputRoot.MQMD;
+		Set OutputRoot.MQMD.MsgId    		= InputRoot.MQMD.MsgId;
+		Set OutputRoot.MQMD.CorrelId   		= InputRoot.MQMD.MsgId;
+		Set OutputRoot.MQMD.Format 			= MQFMT_STRING;
+		Set OutputRoot.MQMD.Encoding 		= 273;
+		Set OutputRoot.MQMD.CodedCharSetId 	= 819;
+		Set OutputRoot.MQMD.Expiry   		= -1;
+		
+		Create Field OutputRoot.XML.(XML.XmlDecl)XML;
+		Set OutputRoot.XML.(XML.XmlDecl).(XML.Version)    = '1.0'; 
+		Set OutputRoot.XML.(XML.XmlDecl).(XML."Encoding") = 'UTF-8';
+		
+		
+		Create LastChild Of OutputRoot.XML As outRef Name 'tivoliAlert';
+		Set outRef.alertText = alertMessage;
+		
+		RETURN TRUE;
+	END;
+END MODULE;

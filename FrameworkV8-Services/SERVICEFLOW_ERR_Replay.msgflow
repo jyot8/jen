@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmFilter.msgnode="ComIbmFilter.msgnode" xmlns:ComIbmMQInput.msgnode="ComIbmMQInput.msgnode" xmlns:ComIbmMQOutput.msgnode="ComIbmMQOutput.msgnode" xmlns:ComIbmResetContentDescriptor.msgnode="ComIbmResetContentDescriptor.msgnode" xmlns:ComIbmThrow.msgnode="ComIbmThrow.msgnode" xmlns:ComIbmTrace.msgnode="ComIbmTrace.msgnode" xmlns:SF_Build_LogTimeStamp.subflow="SF_Build_LogTimeStamp.subflow" xmlns:SF_Load_Environment_Variables.subflow="SF_Load_Environment_Variables.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SERVICEFLOW_ERR_Replay.msgflow" nsPrefix="SERVICEFLOW_ERR_Replay.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" key="SERVICEFLOW_ERR_Replay" bundleName="SERVICEFLOW_ERR_Replay" pluginId="FrameworkV8-Services"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj16/SERVICEFLOW_ERR_Replay.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj30/SERVICEFLOW_ERR_Replay.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="This internal service is triggered periodically to look for replayable messages in the exception database table"/>
+    <longDescription xmi:type="utility:ConstantString" string="Replayable messages are resubmitted onto their target queue to be retried"/>
+    <composition>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="785,151" destinationMode="list" messageContext="passIdentity">
+        <translation xmi:type="utility:ConstantString" string="MQOutput"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="31,138" queueName="SYS_REPLAY" messageDomainProperty="XMLNS">
+        <translation xmi:type="utility:ConstantString" string="SYS_REPLAY"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_16" location="454,138" dataSource="EAI" computeExpression="ERR_Replay_Failed_Messages_Determine_Message_Type" computeMode="destinationAndMessage" treatWarningsAsErrors="true" throwExceptionOnDatabaseError="false">
+        <translation xmi:type="utility:ConstantString" string="Determine_Message_Type"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFilter.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_17" location="675,139" filterExpression="esql://routine/#ERR_Replay_Failed_Messages_UseMQOutputNode.Main" treatWarningsAsErrors="true" throwExceptionOnDatabaseError="false">
+        <translation xmi:type="utility:ConstantString" string="Use MQOutput Node"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="133,65" queueName="SYS_REPLAY_FAILURE">
+        <translation xmi:type="utility:ConstantString" string="SYS_REPLAY_FAILURE"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_5" location="89,228" destination="file" filePath="/brokerv8/logs/exception_handling.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo WMBI ExceptionHandling ERROR CARA:Replay Exception message has failed in flow ERR_Replay_Failed_Message. Message will be place on SYS_REPLAY_FAILURE queue. Further details in /var/log/exception_handling_detail.log Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_ERROR.log"/>
+      </nodes>
+      <nodes xmi:type="ComIbmThrow.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="424,228" messageText="SYS_REPLAY_FAILURE ERR_Replay_Failed_Message">
+        <translation xmi:type="utility:ConstantString" string="Throw"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_8" location="254,228" destination="file" filePath="/brokerv8/logs/exception_handling_detail.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo WMBI ExceptionHandling ERROR CARA:Replay Exception message has failed in flow ERR_Replay_Failed_Message. Message will be place on SYS_REPLAY_FAILURE queue. Exception_id=${Environment.Variables.ExceptionId} MSGID=${Cast(Root.MQMD.MsgId As Char)}&#xA; ############# Message data follows ########&#xA;${Root}&#xA; ############ Exception follows&#xA;${ExceptionList}&#xA; ## End ###">
+        <translation xmi:type="utility:ConstantString" string="exception_handling_detail.log"/>
+      </nodes>
+      <nodes xmi:type="SF_Build_LogTimeStamp.subflow:FCMComposite_1" xmi:id="FCMComposite_1_9" location="106,138">
+        <translation xmi:type="utility:ConstantString" string="SF_Build_LogTimeStamp"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_10" location="218,138" destination="file" filePath="/brokerv8/logs/exception_handling.log" pattern="${SUBSTRING(Environment.Variables.LogTimeStamp FROM 1)} NoThreadInfo ${Environment.Variables.ENV.HOSTNAME} NoServerInfo WMBI ExceptionHandling INFO CARA:Replay flow has been called">
+        <translation xmi:type="utility:ConstantString" string="Trace"/>
+      </nodes>
+      <nodes xmi:type="SF_Load_Environment_Variables.subflow:FCMComposite_1" xmi:id="FCMComposite_1_11" location="287,138">
+        <translation xmi:type="utility:ConstantString" string="SF_Load_Environment_Variables"/>
+      </nodes>
+      <nodes xmi:type="ComIbmResetContentDescriptor.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="564,199" resetMessageDomain="true" resetMessageSet="true" resetMessageType="true" resetMessageFormat="true">
+        <translation xmi:type="utility:ConstantString" string="ResetContentDescriptor"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_17" sourceTerminalName="OutTerminal.true" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_5" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_8" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_6" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_9" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_10" sourceNode="FCMComposite_1_9" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_11" sourceNode="FCMComposite_1_10" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_9" targetNode="FCMComposite_1_16" sourceNode="FCMComposite_1_11" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_10" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_16" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_11" targetNode="FCMComposite_1_17" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_12" targetNode="FCMComposite_1_17" sourceNode="FCMComposite_1_16" sourceTerminalName="OutTerminal.out1" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer/>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

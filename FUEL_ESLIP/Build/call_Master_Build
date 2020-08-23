@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- Author Suvendu Paul Date:February 09 2015 -->
+<project name="main.build.deploy" default="application.build" basedir="." xmlns:ac="antlib:net.sf.antcontrib">
+	<target name="application.build" description="Ant Script invokes Master Ant Script Master_Build_Deploy\Deploy\ftp-deploy-bar.xml">
+		
+		<!-- Extract details from environment file -->
+		<property environment="iibenv"/>
+		<property file="${iibenv.SETIIBENV}\IIB_set_Env" />
+		<echo message="${os.name} ${ant.version}"/>
+		<echo message="Environment value of SETIIBENV is ${iibenv.SETIIBENV}"/>
+		<!-- <property file= "C:\IIB_Environment\IIB_set_Env" /> -->
+		<property name="ant.bars.basedir" value="${antbasedir}" />
+		<echo message="Workspace at ${ant.bars.basedir}" />
+		<property name="workspaces.dir" value="${ant.bars.basedir}" />
+        <property name="app.base.dir" value="${basedir}"/>
+		<property file="application"/>
+		<property name="application.name" value="${applicationlist}" />
+		<property name="app.build.dir" value="${workspaces.dir}\${application.name}\Build"/>
+		<ac:if>
+			<equals arg1="${app.base.dir}" arg2="${app.build.dir}"/>
+			<ac:then>
+				<echo message="Invoking Master Build Script"/>
+				<ant antfile="${workspaces.dir}\Master_Build_Deploy\Build\build.xml" />
+			</ac:then>
+			<ac:else>
+				<echo message="Check ${app.build.dir}\application"/>
+				<echo message="Check the Workspace Path defined in environment"/>
+				<echo message="Verify the applicationlist value "/>
+				<fail message="---------Failed to create bar archive---------------"/>
+			</ac:else>
+		</ac:if>
+   	
+		<echo message="Completed invoking the Master Build script"/>		
+
+	</target>
+</project>

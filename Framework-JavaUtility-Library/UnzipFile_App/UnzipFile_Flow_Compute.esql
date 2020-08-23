@@ -1,0 +1,37 @@
+--Initial Version
+--unZip Utility
+--Author Suvendu Paul
+--Date June12,2014
+
+CREATE COMPUTE MODULE UnzipFile_Flow_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		  CALL CopyMessageHeaders();
+		  CALL CopyEntireMessage();
+
+		
+        
+		 SET OutputRoot.BLOB.BLOB = InputRoot.BLOB.BLOB ;
+		 SET OutputRoot.MQMD.ReplyToQ = TRIM(InputRoot.MQMD.SourceQueue) ;
+		
+		 --SET OutputRoot.XMLNSC.FileName = Environment.FileName ;
+		 
+		 RETURN TRUE;
+		 END;
+		 
+		 
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

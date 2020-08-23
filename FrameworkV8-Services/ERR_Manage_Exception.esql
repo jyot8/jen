@@ -1,0 +1,144 @@
+/* =====================================================================================================================================================
+ *
+ * Common Exception Management
+ *
+ * ======================================================================================================================================================
+  * History
+ *  Fix Number		 	Module    						Name            	Date    							Description
+ * =======================================================================================================================================================
+ 
+ * =========================================================================================================================================================*/
+ 
+
+CREATE COMPUTE MODULE ERR_Manage_Exception_Manage_Exception
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+				
+	    -- ====================================================
+		-- Declaring the reference and variables.
+		-- =======================================================
+		
+		DECLARE inRef 					REFERENCE TO InputRoot;
+		DECLARE outRef 					REFERENCE TO OutputRoot;
+		DECLARE DB_QUERY_IN_PARAMS 		ROW;
+		DECLARE DB_QUERY_OUT_PARAMS 	ROW;
+		DECLARE SQL_STATEMENT 			CHARACTER;
+		DECLARE DATEFROM                CHARACTER;
+		DECLARE DATETO                  CHAR;	
+		DECLARE rowNum                  INTEGER;
+		DECLARE PRIORITY              	CHARACTER;
+		DECLARE status              	CHARACTER '';
+		DECLARE commonNs                NAMESPACE 'http://Common.EAI.finnair.fi';
+		DECLARE DATE_CURRENT         	CHARACTER;
+		DECLARE esbErrorCode            CHARACTER;
+		DECLARE enVal REFERENCE TO Environment;			
+		
+		MOVE inRef TO InputRoot.XMLNSC.commonNs:FinnairMsg;
+					
+		-- ==============================================================================================
+		-- FOR EXTRACTING data on the basis of their priority and the time duration given.		
+		-- ==============================================================================================
+		
+		 SET DATE_CURRENT = CAST (CURRENT_DATE AS CHARACTER FORMAT 'yyyy-MM-dd');
+		 SET DATEFROM = CAST ((CURRENT_DATE - INTERVAL '1' DAY) AS CHARACTER FORMAT 'yyyy-MM-dd');
+		-- SET DATETO =  DATEFROM  || '-23.59.59.999999';
+		 
+		-- ==============================================================================================
+		-- 	Constructing Finnair message header	
+		-- ==============================================================================================
+		 		 
+	     CALL CopyMessageHeaders();
+		
+		 MOVE inRef TO InputRoot.XMLNSC.commonNs:FinnairMsg;
+		 
+		 	SET OutputRoot.XMLNSC = NULL;
+			CREATE LASTCHILD OF OutputRoot AS outRef DOMAIN 'XMLNSC';
+			SET outRef.(XMLNSC.XmlDeclaration).(XMLNSC.Attribute)Version = '1.0';
+			SET outRef.(XMLNSC.XmlDeclaration).(XMLNSC.Attribute)Encoding = 'UTF-8';
+			SET outRef.(XMLNSC.XmlDeclaration).(XMLNSC.Attribute)standAlone = 'yes';	
+
+			CREATE LASTCHILD OF outRef AS outRef NAMESPACE commonNs NAME 'FinnairMsg';
+			SET outRef.(XMLNSC.NamespaceDecl)xmlns = commonNs;
+			CREATE LASTCHILD OF outRef AS outRef NAMESPACE commonNs NAME 'Header';
+			CALL CreateFinnairHeader(outRef,InputRoot,'ManageException',status);
+			MOVE outRef PARENT;
+			CREATE LASTCHILD OF outRef NAMESPACE commonNs NAME 'Error';
+		 
+		-- ================================================================================================================================
+		-- Check if the trigger is set if yes then extract data for the datetimesent in message header and current_date
+		-- otherwise extract data for current date time.
+		-- =================================================================================================================================
+				
+			IF inRef.commonNs:Trigger = 'USECOMMONHEADERDATETIME' THEN
+	
+	 			SET DB_QUERY_IN_PARAMS.TIMESTAMPFROM = XSDToDBTimestamp(inRef.commonNs:Header.commonNs:dateTimeSent);
+	 			SET esbErrorCode = 'EAI:920234';
+	
+			ELSE
+	
+				SET DB_QUERY_IN_PARAMS.TIMESTAMPFROM = DATEFROM || '-00.00.00.000000';
+				SET esbErrorCode = 'EAI:920235';
+	
+			END IF;
+	
+			SET DB_QUERY_IN_PARAMS.TIMESTAMPTO = DATEFROM || '-23.59.59.999999';
+			
+			SET SQL_STATEMENT = 'SELECT COUNT(EXCEPTION_ID) TOTAL_NUM,
+				EXCEPTION_PRIORITY
+				FROM MESSAGE_EXCEPTION WHERE
+				EXCEPTION_TSTMP BETWEEN ? AND ? AND STATUS NOT IN (''B'', ''P'')
+				GROUP BY EXCEPTION_PRIORITY';
+	
+			CALL cDatabaseRead(SQL_STATEMENT,FALSE ,esbErrorCode , DB_QUERY_IN_PARAMS, DB_QUERY_OUT_PARAMS, 'RAISE_ALERT_FOR_PRIORITY');
+			
+		-- ==============================================================================
+		-- get the reference data for priority to decide weather to raise alert or not
+		-- ==============================================================================	
+		CALL getEnvValues(enVal);
+		  			
+		
+		SET rowNum = 1;		
+		
+		FOR forRef AS DB_QUERY_OUT_PARAMS.RAISE_ALERT_FOR_PRIORITY[] DO
+										
+			IF Position('|' || Trim(forRef.EXCEPTION_PRIORITY) || '|' IN enVal.RAISE_ALERT_FOR_PRIORITY) <= 0 
+			THEN	
+				SET PRIORITY = forRef.EXCEPTION_PRIORITY;			
+
+				CASE PRIORITY				
+					WHEN 'C' THEN				
+						SET outRef.commonNs:Error.commonNs:Severity = 'CRITICAL';
+					WHEN 'U' THEN
+						SET outRef.commonNs:Error.commonNs:Severity = 'URGENT';
+					WHEN 'H' THEN		
+						SET outRef.commonNs:Error.commonNs:Severity = 'HIGH';
+					WHEN 'M' THEN
+						SET outRef.commonNs:Error.commonNs:Severity = 'MEDIUM';
+					WHEN 'L' THEN
+						SET outRef.commonNs:Error.commonNs:Severity = 'LOW';
+				ELSE
+					SET outRef.commonNs:Error.commonNs:Severity = 'INFORMATION';
+				END CASE;			
+				
+				SET outRef.commonNs:Error.commonNs:ErrorCode = 'VARIOUS';
+				SET outRef.commonNs:Error.commonNs:ErrorText = 'Total'||' '||  outRef.commonNs:Error.commonNs:Severity ||' '|| 'priority exceptions found until'||' ' || DATE_CURRENT || ' - ' || CAST(forRef.TOTAL_NUM AS CHAR);  
+				
+				PROPAGATE TO TERMINAL 'out1'DELETE NONE;
+					
+			END IF;
+		END FOR;
+
+		RETURN FALSE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+END MODULE;

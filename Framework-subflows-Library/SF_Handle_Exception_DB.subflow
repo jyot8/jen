@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmMQOutput.msgnode="ComIbmMQOutput.msgnode" xmlns:ComIbmThrow.msgnode="ComIbmThrow.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SF_Handle_Exception_DB.subflow"
+    nsPrefix="SF_Handle_Exception_DB.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.Sleep_Time" name="Sleep_Time" defaultValueLiteral="3000">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.messageNumber" name="messageNumber" defaultValueLiteral="6001">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.messageText" name="messageText" defaultValueLiteral="set_exception_message_text">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.BackoutCounter" name="BackoutCounter" defaultValueLiteral="3">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.ToAddress1" name="ToAddress1" defaultValueLiteral="set_address1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.ToAddress2" name="ToAddress2" defaultValueLiteral="set_address2">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.Subject" name="Subject" defaultValueLiteral="set_subject">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.MailLine1" name="MailLine1" defaultValueLiteral="set_mail_line1">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.MailLine2" name="MailLine2" defaultValueLiteral="set_mail_line2">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.MailLine3" name="MailLine3" defaultValueLiteral="set_mail_line3">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.MailLine4" name="MailLine4" defaultValueLiteral="set_mail_line4">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="SF_Handle_Exception_DB" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj16/SF_Handle_Exception_DB.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj30/SF_Handle_Exception_DB.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="Broker framework subflow handling DB exceptions and corresponding retry"/>
+    <version xmi:type="utility:ConstantString" string="$MQSI SF_Handle_Exception_DB subflow = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_Handle_Exception_DB.subflow,v 1.5 2016/03/01 11:32:28 arindam.saha Exp $ MQSI$"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input" location="57,131">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.Input" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="237,131" computeExpression="esql://routine/#SF_Handle_Exception_DB_Manage_DB_Exceptions.Main">
+        <translation xmi:type="utility:ConstantString" string="Manage_DB_Exceptions"/>
+      </nodes>
+      <nodes xmi:type="ComIbmThrow.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="515,132">
+        <translation xmi:type="utility:ConstantString" string="Throw"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="396,65" queueName="TYPEB.MAIL" transactionMode="no">
+        <translation xmi:type="utility:ConstantString" string="MQ Output"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out1" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="InTerminal.Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.Sleep_Time">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.Sleep_Time" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+        <propertyDescriptor groupName="Group.Basic" describedAttribute="Property.messageNumber">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.messageNumber" bundleName="ComIbmThrow" pluginId="com.ibm.etools.mft.ibmnodes"/>
+          <propertyDescriptor groupName="Group.Basic" describedAttribute="Property.messageText">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.messageText" bundleName="ComIbmThrow" pluginId="com.ibm.etools.mft.ibmnodes"/>
+            <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.BackoutCounter">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.BackoutCounter" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+              <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.ToAddress1">
+                <propertyName xmi:type="utility:TranslatableString" key="Property.ToAddress1" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.ToAddress2">
+                  <propertyName xmi:type="utility:TranslatableString" key="Property.ToAddress2" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                  <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.Subject">
+                    <propertyName xmi:type="utility:TranslatableString" key="Property.Subject" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                    <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.MailLine1">
+                      <propertyName xmi:type="utility:TranslatableString" key="Property.MailLine1" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                      <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.MailLine2">
+                        <propertyName xmi:type="utility:TranslatableString" key="Property.MailLine2" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                        <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.MailLine3">
+                          <propertyName xmi:type="utility:TranslatableString" key="Property.MailLine3" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                          <propertyDescriptor groupName="Group.Mail" configurable="true" userDefined="true" describedAttribute="Property.MailLine4">
+                            <propertyName xmi:type="utility:TranslatableString" key="Property.MailLine4" bundleName="SF_Handle_Exception_DB" pluginId="Framework-subflows-Library"/>
+                          </propertyDescriptor>
+                        </propertyDescriptor>
+                      </propertyDescriptor>
+                    </propertyDescriptor>
+                  </propertyDescriptor>
+                </propertyDescriptor>
+              </propertyDescriptor>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.messageNumber" overriddenNodes="FCMComposite_1_3">
+      <overriddenAttribute href="ComIbmThrow.msgnode#Property.messageNumber"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.messageText" overriddenNodes="FCMComposite_1_3">
+      <overriddenAttribute href="ComIbmThrow.msgnode#Property.messageText"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

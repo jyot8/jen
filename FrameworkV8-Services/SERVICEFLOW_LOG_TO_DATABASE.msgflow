@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmMQInput.msgnode="ComIbmMQInput.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" xmi:id="EPackage_1" nsURI="SERVICEFLOW_LOG_TO_DATABASE.msgflow" nsPrefix="SERVICEFLOW_LOG_TO_DATABASE.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" xmi:id="FCMComposite_1" name="FCMComposite_1">
+    <eAnnotations>
+      <details key="xmi:uuid" value="52086e8d-f900-0000-0080-d177408197ff"/>
+    </eAnnotations>
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" xmi:id="TranslatableString_1" key="SERVICEFLOW_LOG_TO_DATABASE" bundleName="SERVICEFLOW_LOG_TO_DATABASE" pluginId="FrameworkV8-Services"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" xmi:id="GIFFileGraphic_1" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj16/SERVICEFLOW_LOG_TO_DATABASE.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" xmi:id="GIFFileGraphic_2" resourceName="platform:/plugin/FrameworkV8-Services/icons/full/obj30/SERVICEFLOW_LOG_TO_DATABASE.gif"/>
+    <composition xmi:id="Composition_1">
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_8" location="226,116" dataSource="EAI" computeExpression="FLOW_LOG_TO_DATABASE_LOGGING" computeMode="all">
+        <translation xmi:type="utility:TranslatableString" xmi:id="TranslatableString_9" key="LOGGING" bundleName="SERVICEFLOW_LOG_TO_DATABASE" pluginId="FrameworkV8-Services"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_10" location="41,116" queueName="EAI.LOGGING" messageDomainProperty="XML">
+        <translation xmi:type="utility:TranslatableString" xmi:id="TranslatableString_11" key="EAI.LOGGING" bundleName="SERVICEFLOW_LOG_TO_DATABASE" pluginId="FrameworkV8-Services"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_8" sourceNode="FCMComposite_1_10" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer xmi:id="PropertyOrganizer_1"/>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

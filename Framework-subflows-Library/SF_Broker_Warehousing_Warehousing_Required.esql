@@ -1,0 +1,18 @@
+
+
+CREATE FILTER MODULE SF_Broker_Warehousing_Warehousing_Required
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Check cached routings in environment for logging level indicating warehousing required
+		DECLARE EffectiveLevel	INTEGER	0;
+		IF (Environment.LoggingIndex = 0) THEN
+			SET EffectiveLevel = Environment.Routing[1].LOG_LEVEL_INTEGRATION;
+		ELSEIF (Environment.LoggingIndex > 0) THEN
+			SET EffectiveLevel = Environment.Routing[Environment.LoggingIndex].LOG_LEVEL_ROUTING;
+		END IF;
+		
+		RETURN (EffectiveLevel > 1);
+
+	END;
+
+END MODULE;

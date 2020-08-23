@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmFileInput.msgnode="ComIbmFileInput.msgnode" xmlns:SF_Handle_Exception.subflow="SF_Handle_Exception.subflow" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="SF_File_Input_UTF8.subflow"
+    nsPrefix="SF_File_Input_UTF8.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.filenamePattern" name="filenamePattern" lowerBound="1" defaultValueLiteral="*">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.inputDirectory" name="inputDirectory" lowerBound="1" defaultValueLiteral="set_relative_directory_path">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.recursiveDirectories" name="recursiveDirectories" lowerBound="1" defaultValueLiteral="false">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.recursiveDirectories.internal_npcompiler" name="recursiveDirectories.internal_npcompiler">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.processedFileAction" name="processedFileAction" lowerBound="1" eType="//@eClassifiers.1" defaultValueLiteral="moveToArchiveWithTimestamp"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.waitInterval" name="waitInterval" lowerBound="1" defaultValueLiteral="10">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.messageCodedCharSetIdProperty" name="messageCodedCharSetIdProperty" lowerBound="1" defaultValueLiteral="1208">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtp" name="fileFtp" lowerBound="1" defaultValueLiteral="false">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtp.internal_npcompiler" name="fileFtp.internal_npcompiler">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtpScanDelay" name="fileFtpScanDelay" defaultValueLiteral="60">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtpUser" name="fileFtpUser">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtpServer" name="fileFtpServer">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtpDirectory" name="fileFtpDirectory" defaultValueLiteral=".">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.fileFtpTransferMode" name="fileFtpTransferMode" eType="//@eClassifiers.2" defaultValueLiteral="BINARY"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.remoteTransferType" name="remoteTransferType" eType="//@eClassifiers.3" defaultValueLiteral="FTP"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.customDelimiter" name="customDelimiter">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.recordDelimiter" name="recordDelimiter" eType="//@eClassifiers.4" defaultValueLiteral="eitherLineend"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.delimiterType" name="delimiterType" eType="//@eClassifiers.5" defaultValueLiteral="postfix"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.recordLength" name="recordLength" defaultValueLiteral="80">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.recordDetection" name="recordDetection" lowerBound="1" eType="//@eClassifiers.6" defaultValueLiteral="wholeFile"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.skipFirstRecord" name="skipFirstRecord" lowerBound="1" defaultValueLiteral="false">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.skipFirstRecord.internal_npcompiler" name="skipFirstRecord.internal_npcompiler">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="SF_File_Input_UTF8" bundleName="SF_File_Input_UTF8" pluginId="Framework-subflows-Library"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj16/SF_File_Input_UTF8.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-subflows-Library/icons/full/obj30/SF_File_Input_UTF8.gif"/>
+    <shortDescription xmi:type="utility:ConstantString" string="File Input node"/>
+    <longDescription xmi:type="utility:ConstantString" string="FileInput node to process messages that are read from files&#xD;&#xA;Absolute Path:&#xD;&#xA;On AIX MQSI_FILENODES_ROOT_DIRECTORY is set /MQHA02/file&#xD;&#xA;On windows MQSI_FILENODES_ROOT_DIRECTORY is set  c:\filenode&#xD;&#xA;"/>
+    <version xmi:type="utility:ConstantString" string="$MQSI SF_File_Input = $Header: /IntegrationBusV9/Framework-subflows-Library/SF_File_Input_UTF8.subflow,v 1.1 2018/01/04 10:33:26 alok.jha Exp $ MQSI$"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output" location="342,66">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Output" bundleName="SF_File_Input_UTF8" pluginId="Framework-subflows-Library"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFileInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="50,69" messageDomainProperty="BLOB" messageCodedCharSetIdProperty="819" failedFileAction="moveToBackoutWithTimestamp" transactionMode="yes">
+        <translation xmi:type="utility:ConstantString" string="File Input"/>
+      </nodes>
+      <nodes xmi:type="SF_Handle_Exception.subflow:FCMComposite_1" xmi:id="FCMComposite_1_2" location="187,171">
+        <translation xmi:type="utility:ConstantString" string="SF_Handle_Exception"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="187,65" computeExpression="esql://routine/#SF_File_Input_SetEnvironment.Main" computeMode="destination">
+        <translation xmi:type="utility:ConstantString" string="SetEnvironment"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputNodeFilePropertyEditor" configurable="true" describedAttribute="Property.filenamePattern">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.filenamePattern" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+        <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputNodeDirPropertyEditor" configurable="true" describedAttribute="Property.inputDirectory">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.inputDirectory" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+          <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.RecursiveDirPropertyEditor" compiler="com.ibm.etools.mft.ibmnodes.compilers.BooleanPropertyCompiler" configurable="true" describedAttribute="Property.recursiveDirectories">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.recursiveDirectories" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+            <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" userDefined="true" describedAttribute="Property.recursiveDirectories.internal_npcompiler">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.recursiveDirectories.internal_npcompiler" bundleName="SF_File_Input_UTF8" pluginId="Framework-subflows-Library"/>
+              <propertyDescriptor groupName="Group.Basic" describedAttribute="Property.processedFileAction">
+                <propertyName xmi:type="utility:TranslatableString" key="Property.processedFileAction" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FilePollingListenerPropertyEditor" configurable="true" describedAttribute="Property.waitInterval">
+                  <propertyName xmi:type="utility:TranslatableString" key="Property.waitInterval" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                  <propertyDescriptor groupName="Group.Basic" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputCCSIDPropertyEditor" configurable="true" describedAttribute="Property.messageCodedCharSetIdProperty">
+                    <propertyName xmi:type="utility:TranslatableString" key="Property.messageCodedCharSetIdProperty" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                    <propertyDescriptor groupName="Group.FTP" compiler="com.ibm.etools.mft.ibmnodes.compilers.BooleanPropertyCompiler" configurable="true" describedAttribute="Property.fileFtp">
+                      <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtp" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                      <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" userDefined="true" describedAttribute="Property.fileFtp.internal_npcompiler">
+                        <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtp.internal_npcompiler" bundleName="SF_File_Input_UTF8" pluginId="Framework-subflows-Library"/>
+                        <propertyDescriptor groupName="Group.FTP" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileFtpDelayListenerPropertyEditor" describedAttribute="Property.fileFtpScanDelay">
+                          <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtpScanDelay" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                          <propertyDescriptor groupName="Group.FTP" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileFtpStringListenerPropertyEditor" configurable="true" describedAttribute="Property.fileFtpUser">
+                            <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtpUser" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                            <propertyDescriptor groupName="Group.FTP" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileFtpServerListenerPropertyEditor" configurable="true" describedAttribute="Property.fileFtpServer">
+                              <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtpServer" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                              <propertyDescriptor groupName="Group.FTP" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileFtpStringListenerPropertyEditor" configurable="true" describedAttribute="Property.fileFtpDirectory">
+                                <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtpDirectory" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                <propertyDescriptor groupName="Group.FTP" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileFtpModeListenerPropertyEditor" describedAttribute="Property.fileFtpTransferMode">
+                                  <propertyName xmi:type="utility:TranslatableString" key="Property.fileFtpTransferMode" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                  <propertyDescriptor groupName="Group.FTP" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileRemoteTransferTypeListenerPropertyEditor" configurable="true" describedAttribute="Property.remoteTransferType">
+                                    <propertyName xmi:type="utility:TranslatableString" key="Property.remoteTransferType" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                    <propertyDescriptor groupName="Group.RecordsAndElements" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileOutputCustomDelimiterPropertyEditor" configurable="true" describedAttribute="Property.customDelimiter">
+                                      <propertyName xmi:type="utility:TranslatableString" key="Property.customDelimiter" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                      <propertyDescriptor groupName="Group.RecordsAndElements" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputRecordDelimiterPropertyEditor" describedAttribute="Property.recordDelimiter">
+                                        <propertyName xmi:type="utility:TranslatableString" key="Property.recordDelimiter" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                        <propertyDescriptor groupName="Group.RecordsAndElements" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputRecordDelimiterPropertyEditor" describedAttribute="Property.delimiterType">
+                                          <propertyName xmi:type="utility:TranslatableString" key="Property.delimiterType" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                          <propertyDescriptor groupName="Group.RecordsAndElements" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputRecordLengthPropertyEditor" describedAttribute="Property.recordLength">
+                                            <propertyName xmi:type="utility:TranslatableString" key="Property.recordLength" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                            <propertyDescriptor groupName="Group.RecordsAndElements" describedAttribute="Property.recordDetection">
+                                              <propertyName xmi:type="utility:TranslatableString" key="Property.recordDetection" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                              <propertyDescriptor groupName="Group.RecordsAndElements" propertyEditor="com.ibm.etools.mft.ibmnodes.editors.file.FileInputSkipFirstRecordPropertyEditor" compiler="com.ibm.etools.mft.ibmnodes.compilers.BooleanPropertyCompiler" describedAttribute="Property.skipFirstRecord">
+                                                <propertyName xmi:type="utility:TranslatableString" key="Property.skipFirstRecord" bundleName="ComIbmFileInput" pluginId="com.ibm.etools.mft.ibmnodes"/>
+                                                <propertyDescriptor groupName="Group.InternalRuntimeGroup" readOnly="true" hidden="true" userDefined="true" describedAttribute="Property.skipFirstRecord.internal_npcompiler">
+                                                  <propertyName xmi:type="utility:TranslatableString" key="Property.skipFirstRecord.internal_npcompiler" bundleName="SF_File_Input_UTF8" pluginId="Framework-subflows-Library"/>
+                                                </propertyDescriptor>
+                                              </propertyDescriptor>
+                                            </propertyDescriptor>
+                                          </propertyDescriptor>
+                                        </propertyDescriptor>
+                                      </propertyDescriptor>
+                                    </propertyDescriptor>
+                                  </propertyDescriptor>
+                                </propertyDescriptor>
+                              </propertyDescriptor>
+                            </propertyDescriptor>
+                          </propertyDescriptor>
+                        </propertyDescriptor>
+                      </propertyDescriptor>
+                    </propertyDescriptor>
+                  </propertyDescriptor>
+                </propertyDescriptor>
+              </propertyDescriptor>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <attributeLinks promotedAttribute="Property.filenamePattern" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.filenamePattern"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.inputDirectory" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.inputDirectory"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.recursiveDirectories" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.recursiveDirectories"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.processedFileAction" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.processedFileAction"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.waitInterval" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.waitInterval"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.messageCodedCharSetIdProperty" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.messageCodedCharSetIdProperty"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.fileFtp" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.fileFtp"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.fileFtpScanDelay" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.fileFtpScanDelay"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.fileFtpUser" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.fileFtpUser"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.fileFtpServer" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.fileFtpServer"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.fileFtpDirectory" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.fileFtpDirectory"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.fileFtpTransferMode" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.fileFtpTransferMode"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.remoteTransferType" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.remoteTransferType"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.customDelimiter" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.customDelimiter"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.recordDelimiter" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.recordDelimiter"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.delimiterType" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.delimiterType"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.recordLength" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.recordLength"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.recordDetection" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.recordDetection"/>
+    </attributeLinks>
+    <attributeLinks promotedAttribute="Property.skipFirstRecord" overriddenNodes="FCMComposite_1_1">
+      <overriddenAttribute href="ComIbmFileInput.msgnode#Property.skipFirstRecord"/>
+    </attributeLinks>
+    <stickyBoard/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="processedFileAction.moveToArchive" name="moveToArchive"/>
+    <eLiterals xmi:id="processedFileAction.moveToArchiveWithTimestamp" name="moveToArchiveWithTimestamp" value="1"/>
+    <eLiterals xmi:id="processedFileAction.delete" name="delete" value="2"/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="fileFtpTransferMode.ASCII" name="ASCII"/>
+    <eLiterals xmi:id="fileFtpTransferMode.BINARY" name="BINARY" value="1"/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="remoteTransferType.FTP" name="FTP"/>
+    <eLiterals xmi:id="remoteTransferType.SFTP" name="SFTP" value="1"/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="recordDelimiter.eitherLineend" name="eitherLineend"/>
+    <eLiterals xmi:id="recordDelimiter.customDelimiter" name="customDelimiter" value="1"/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="delimiterType.infix" name="infix"/>
+    <eLiterals xmi:id="delimiterType.postfix" name="postfix" value="1"/>
+  </eClassifiers>
+  <eClassifiers xmi:type="ecore:EEnum">
+    <eLiterals xmi:id="recordDetection.wholeFile" name="wholeFile"/>
+    <eLiterals xmi:id="recordDetection.fixedLength" name="fixedLength" value="1"/>
+    <eLiterals xmi:id="recordDetection.delimited" name="delimited" value="2"/>
+    <eLiterals xmi:id="recordDetection.parsedRecordSequence" name="parsedRecordSequence" value="3"/>
+  </eClassifiers>
+</ecore:EPackage>

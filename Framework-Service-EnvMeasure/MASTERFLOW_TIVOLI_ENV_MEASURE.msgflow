@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmLabel.msgnode="ComIbmLabel.msgnode" xmlns:ComIbmResetContentDescriptor.msgnode="ComIbmResetContentDescriptor.msgnode" xmlns:ComIbmRouteToLabel.msgnode="ComIbmRouteToLabel.msgnode" xmlns:SF_Broker_Routing.subflow="SF_Broker_Routing.subflow" xmlns:SF_HTTP_Input.subflow="SF_HTTP_Input.subflow" xmlns:SF_MQ_Input.subflow="SF_MQ_Input.subflow" xmlns:SF_MQ_Output.subflow="SF_MQ_Output.subflow" xmlns:SF_Reply_Output.subflow="SF_Reply_Output.subflow"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="MASTERFLOW_TIVOLI_ENV_MEASURE.msgflow"
+    nsPrefix="MASTERFLOW_TIVOLI_ENV_MEASURE.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" key="MASTERFLOW_TIVOLI_ENV_MEASURE" bundleName="MASTERFLOW_TIVOLI_ENV_MEASURE" pluginId="Framework-Service-EnvMeasure"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-Service-EnvMeasure/icons/full/obj16/MASTERFLOW_TIVOLI_ENV_MEASURE.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/Framework-Service-EnvMeasure/icons/full/obj30/MASTERFLOW_TIVOLI_ENV_MEASURE.gif"/>
+    <longDescription xmi:type="utility:ConstantString" string="Use Environment.InputMessageId where RequestIdentifier is stored"/>
+    <version xmi:type="utility:ConstantString" string="$MQSI FI161_MASTERFLOW_TIVOLI_ENV_MEASURE =  $Header: /IntegrationBusV9/Framework-Service-EnvMeasure/MASTERFLOW_TIVOLI_ENV_MEASURE.msgflow,v 1.1 2015/03/06 12:22:35 suvendu.paul Exp $ MQSI$"/>
+    <composition>
+      <nodes xmi:type="SF_HTTP_Input.subflow:FCMComposite_1" xmi:id="FCMComposite_1_1" location="46,113" URLSpecifier="/EnvMeasure/Message" timeoutForClient="30">
+        <translation xmi:type="utility:ConstantString" string="SF_HTTP_Input"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="140,109" computeExpression="esql://routine/#MASTERFLOW_TIVOLI_ENV_MEASURE_Compute.Main">
+        <translation xmi:type="utility:ConstantString" string="Tivoli_Env_Measure_Compute"/>
+      </nodes>
+      <nodes xmi:type="SF_Broker_Routing.subflow:FCMComposite_1" xmi:id="FCMComposite_1_3" location="350,110" RoutingType="MASTERFLOW_TIVOLI_ENV_MEASURE">
+        <translation xmi:type="utility:ConstantString" string="SF_Broker_Routing"/>
+      </nodes>
+      <nodes xmi:type="ComIbmRouteToLabel.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="539,110">
+        <translation xmi:type="utility:ConstantString" string="Route To Label"/>
+      </nodes>
+      <nodes xmi:type="ComIbmLabel.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_5" location="215,190" labelName="TIVOLI_ENV_MEASURE">
+        <translation xmi:type="utility:ConstantString" string="TIVOLI_ENV_MEASURE"/>
+      </nodes>
+      <nodes xmi:type="SF_MQ_Output.subflow:FCMComposite_1" xmi:id="FCMComposite_1_6" location="468,190">
+        <translation xmi:type="utility:ConstantString" string="SF_MQ_Output"/>
+      </nodes>
+      <nodes xmi:type="SF_MQ_Input.subflow:FCMComposite_1" xmi:id="FCMComposite_1_9" location="32,282" QueueName="IIB.ENV.MEASURE.HTTP">
+        <translation xmi:type="utility:ConstantString" string="SF_MQ_Input"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_10" location="284,286" computeExpression="esql://routine/#MASTERFLOW_TIVOLI_ENV_MEASURE_MSG_Compute.Main" computeMode="destinationAndMessage">
+        <translation xmi:type="utility:ConstantString" string="Tivoli_Env_Measure_Msg_Compute"/>
+      </nodes>
+      <nodes xmi:type="SF_Reply_Output.subflow:FCMComposite_1" xmi:id="FCMComposite_1_11" location="583,290">
+        <translation xmi:type="utility:ConstantString" string="SF_Reply_Output"/>
+      </nodes>
+      <nodes xmi:type="ComIbmResetContentDescriptor.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="137,282" messageDomain="XMLNSC" resetMessageDomain="true">
+        <translation xmi:type="utility:ConstantString" string="Reset Content Descriptor"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.Output1" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_6" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_11" sourceNode="FCMComposite_1_10" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_11" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.Output2" targetTerminalName="InTerminal.Input1">
+        <bendPoints>121,110,-260,-66</bendPoints>
+        <bendPoints>196,110,-185,-66</bendPoints>
+      </connections>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_9" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_10" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer/>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

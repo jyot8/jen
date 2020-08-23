@@ -1,0 +1,6 @@
+FrameworkV8-Services\SERVICEFLOW_LOG_TO_DATABASE.msgflow
+FrameworkV8-Services\SERVICEFLOW_STATS.msgflow
+FrameworkV8-Services\SERVICEFLOW_DISCARD_MESSAGE.msgflow
+-l Framework-subflows-Library
+
+

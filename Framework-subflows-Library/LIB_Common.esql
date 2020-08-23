@@ -1,0 +1,367 @@
+
+
+DECLARE envValues      		SHARED ROW;
+DECLARE TimeZoneCache SHARED ROW ROW(FALSE AS TZAlreadyLoaded);
+DECLARE auditValues      		SHARED ROW;
+
+DECLARE commonNs NAMESPACE 'http://Common.EAI.finnair.fi'; 
+
+
+/*------------------------------------------------------------------------------
+* Module Name : getAuditValues
+* Description : Gets the reference to auditValues.
+*				Note that to use this, a flow will need to define :-
+*		DECLARE auditVal REFERENCE TO Environment;		
+*				then call the procedure :-
+*		CALL getAuditValues(auditVal);
+------------------------------------------------------------------------------*/
+
+CREATE PROCEDURE getAuditValues(INOUT auditVal REFERENCE)
+BEGIN
+	DECLARE refToEnv REFERENCE TO auditValues;
+	MOVE auditVal TO refToEnv;
+END;		
+
+
+--------------------------------------------------------------------------------------
+
+/*------------------------------------------------------------------------------
+* Module Name : getEnvValues
+* Description : Gets the reference to envValues.
+*				Note that to use this, a flow will need to define :-
+*		DECLARE enVal REFERENCE TO Environment;		
+*				then call the procedure :-
+*		CALL getEnvValues(enVal);
+------------------------------------------------------------------------------*/
+
+CREATE PROCEDURE getEnvValues(INOUT enVal REFERENCE)
+BEGIN
+	DECLARE refToEnv REFERENCE TO envValues;
+	MOVE enVal TO refToEnv;
+END;		
+
+
+---------------------------------------------------------------------------------------
+CREATE PROCEDURE cDatabaseRead(IN SQL_STATEMENT CHAR, IN THROW_IF_NO_ROWS_FOUND BOOLEAN, IN ERR_CODE CHAR, IN DB_IN_PARAMS REFERENCE, IN DB_OUT_PARAMS REFERENCE, IN RESULT_BRANCH_NAME CHAR) BEGIN
+
+	DECLARE noRowsRef REFERENCE TO DB_IN_PARAMS;
+    
+	-- Perform Database Passthru Statement
+	SET DB_OUT_PARAMS.{RESULT_BRANCH_NAME}[] = Passthru(SQL_STATEMENT, DB_IN_PARAMS.[]);
+	 
+	-- Check for non-zero SQLCODE or no rows found
+	Move noRowsRef To  DB_OUT_PARAMS.{RESULT_BRANCH_NAME}[1];
+		
+	-- There were no rows found
+	IF (SQLCODE <> 0) OR (THROW_IF_NO_ROWS_FOUND AND (LastMove(noRowsRef) = FALSE)) THEN
+		
+		-- Build string of input parameters
+		DECLARE DB_IN_PARAMS_STRING CHAR '';
+	
+		For dipRef As DB_IN_PARAMS.*[] Do
+			SET DB_IN_PARAMS_STRING = DB_IN_PARAMS_STRING || CAST(Coalesce(dipRef,'NULL') as CHAR) || ',';
+		End For;
+	
+		SET DB_IN_PARAMS_STRING = TRIM(TRAILING ',' From DB_IN_PARAMS_STRING);
+		
+		IF (SQLCODE <> 0) THEN
+			IF SQLSTATE = '40001' THEN       
+			   SET ERR_CODE = 'ESB:555555';
+			ELSEIF SQLSTATE = '57011' THEN
+			   SET ERR_CODE = 'ESB:444444';
+			END IF;
+	
+			THROW USER EXCEPTION VALUES(
+				'ESB',
+				'FAILED: Data exception',
+				ERR_CODE,
+				Left(SQL_STATEMENT, 1000),
+				SQLCODE,SQLERRORTEXT,SQLSTATE,SQLNATIVEERROR,
+				DB_IN_PARAMS_STRING);
+			
+		ELSE
+			
+			THROW USER EXCEPTION VALUES(
+				'ESB',
+				'FAILED: No Rows Found',
+				ERR_CODE,
+				Left(SQL_STATEMENT, 1000),				
+				SQLCODE,SQLERRORTEXT,SQLSTATE,SQLNATIVEERROR,
+				DB_IN_PARAMS_STRING);			
+			
+		END IF;
+
+	END IF;
+
+END;
+
+---------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------
+CREATE PROCEDURE cDatabaseWrite(IN SQL_STATEMENT CHAR, IN ERR_CODE CHAR, IN DB_IN_PARAMS REFERENCE) BEGIN
+	
+	-- Perform Database Passthru Statement
+	Passthru SQL_STATEMENT Values(DB_IN_PARAMS.[]);
+			
+	-- Check for non-zero SQLCODE or no rows found
+	IF (SQLCODE <> 0) THEN
+		
+		IF SQLSTATE = '40001' THEN			
+		   SET ERR_CODE = 'ESB:555555';
+		ELSEIF SQLSTATE = '57011' THEN
+		   SET ERR_CODE = 'ESB:444444';
+		END IF;
+		
+		-- Build string of input parameters
+		DECLARE DB_IN_PARAMS_STRING CHAR '';
+	
+		For dipRef As DB_IN_PARAMS.*[] Do
+				SET DB_IN_PARAMS_STRING = DB_IN_PARAMS_STRING || CAST(Coalesce(dipRef,'NULL') as CHAR) || ',';	
+		End For;
+	
+		SET DB_IN_PARAMS_STRING = TRIM(TRAILING ',' From DB_IN_PARAMS_STRING);
+	
+		THROW USER EXCEPTION VALUES(
+			'ESB',
+			'FAILED: Data exception',
+			ERR_CODE,
+			Left(SQL_STATEMENT, 1000),
+			SQLCODE,SQLERRORTEXT,SQLSTATE,SQLNATIVEERROR,
+			DB_IN_PARAMS_STRING);
+
+
+	END IF;
+
+END;
+
+
+
+---------------------------------------------------------------------------------------
+-- Description:
+-- Populates a standard header for Finnair messages from data in MQMD of input message
+---------------------------------------------------------------------------------------
+CREATE PROCEDURE CreateFinnairHeader(
+	IN REF_OUT_HEADER REFERENCE, 	-- reference to the (already created) header field in teh output message
+	IN inRoot REFERENCE, 			-- reference to the root of the input message to retrieve the MQMD data from
+	IN senderId CHARACTER, 			-- A string identifying the application or service that is creating teh message
+	OUT Status CHAR)				-- always returns OK
+BEGIN
+	
+	SET REF_OUT_HEADER.commonNs:dateTimeSent 			= Formatted_Current_Time();
+	SET REF_OUT_HEADER.commonNs:correlationId 			= COALESCE (inRoot.MQMD.MsgId, 'X00000000000000000000000000000000000000000000000');    -- LRCCQ00032279
+	SET REF_OUT_HEADER.commonNs:feedback 				= COALESCE (inRoot.MQMD.Feedback, 'String');
+	SET REF_OUT_HEADER.commonNs:Format 					= 'String';
+	SET REF_OUT_HEADER.commonNs:interfaceVersion 		= COALESCE (inRoot.MQMD.Version, '0');
+	SET REF_OUT_HEADER.commonNs:isPersistent 			= COALESCE (inRoot.MQMD.Persistence,'true');
+	SET REF_OUT_HEADER.commonNs:messageId 				= COALESCE (inRoot.MQMD.MsgId, 'String');
+	SET REF_OUT_HEADER.commonNs:messageLifetime 		= COALESCE (inRoot.MQMD.Expiry, 'String');	
+	SET REF_OUT_HEADER.commonNs:priority 				= COALESCE (inRoot.MQMD.Priority,0); 
+	SET REF_OUT_HEADER.commonNs:returnAddress 			= inRoot.MQMD.ReplyToQMgr||'('||inRoot.MQMD.ReplyToQ||')';
+	SET REF_OUT_HEADER.commonNs:schemaVersion 			= '1.0';
+	SET REF_OUT_HEADER.commonNs:segmentingInformation 	= 'MQMF_SEGMENTATION_ALLOWED';	
+	SET REF_OUT_HEADER.commonNs:senderApplication 		= senderId;
+	SET REF_OUT_HEADER.commonNs:messageSignature 		= COALESCE (inRoot.MQMD.MsgId, 'X00000000000000000000000000000000000000000000000');
+	
+	SET Status='OK';
+	RETURN;
+END;
+
+CREATE FUNCTION Formatted_Current_Time() RETURNS CHARACTER
+BEGIN
+	DECLARE OutString CHARACTER;
+	DECLARE C_CREATE_DB_TIMESTAMP CONSTANT BOOLEAN FALSE;
+	--SET OutString = TRANSLATE(CAST( CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd HH:mm:ss.S'), ' ', 'T');
+	SET OutString = CAST( CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyy-MM-dd HH:mm:ss.S');
+
+	RETURN OutString;
+END;
+
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+CREATE PROCEDURE cWrapWithSoap(
+IN outRef REFERENCE,
+IN domainName CHAR,
+OUT Status CHAR) 
+BEGIN
+	
+		-- Basically we take in a reference to the OutputRoot and the domain name that
+		-- you want to wrap in a SOAP Message
+
+
+		DECLARE soap11 NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/'; 
+		DECLARE soap12 NAMESPACE 'http://www.w3.org/2002/06/soap-envelope'; 
+		DECLARE tempRef REFERENCE TO outRef; -- we will create a temporary storage for the Message Body
+		DECLARE outRef2 REFERENCE To outRef;
+		
+		CREATE LASTCHILD OF tempRef AS tempRef NAME 'TEMP';
+				
+		MOVE outRef LASTCHILD NAME domainName; -- TYPE 0x01000000; 
+		-- TYPE 0x01000000 to force outRef pointing at the message body
+		MOVE outRef FIRSTCHILD TYPE 0x01000000;	-- Pointing at the message body
+		CREATE LASTCHILD OF tempRef FROM outRef; -- This is a copy of the message body
+		MOVE tempRef FIRSTCHILD; -- Pointing at the message body
+		
+		DELETE FIELD outRef;
+		
+		MOVE outRef2 LASTCHILD NAME domainName; -- TYPE 0x01000000; 
+		
+		CREATE LASTCHILD OF outRef2 As outRef2 NAMESPACE soap11 NAME 'Envelope';
+		CREATE LASTCHILD OF outRef2 NAMESPACE soap11 NAME 'Header';
+		CREATE LASTCHILD OF outRef2 AS outRef2 NAMESPACE soap11 NAME 'Body';
+		CREATE LASTCHILD OF outRef2 FROM tempRef;
+		
+		-- Now we need to delete the temporary reference
+		MOVE tempRef PARENT;
+		DELETE FIELD tempRef;
+		
+		RETURN;
+	
+END;
+
+----------------------------------------------------------------------------*/
+CREATE FUNCTION XSDToDBTimestamp(ref REFERENCE)
+	RETURNS CHARACTER 
+BEGIN
+	
+	DECLARE dbTimestamp CHAR;
+	
+	SET dbTimestamp = TRIM(ref);
+	SET dbTimestamp = REPLACE(dbTimestamp, 'T', ' ');
+	SET dbTimestamp = REPLACE(dbTimestamp, 'Z', '');
+
+	-- Handling the datetime format with +01:00 or any time diff from GMT.
+	IF POSITION('+' IN dbTimestamp) > 0 THEN
+		SET dbTimestamp = SUBSTRING(dbTimestamp FROM 1 FOR POSITION('+' IN dbTimestamp) - 1); 
+	END IF;
+	
+	IF LENGTH(dbTimestamp) = 10 THEN 
+		SET dbTimestamp = dbTimestamp || ' 00:00:00.000000'; -- The input value contains DATE
+	ELSEIF LENGTH(dbTimestamp) = 19 THEN 
+		SET dbTimestamp = dbTimestamp || '.000000'; -- The input value contains DATE & TIME till seconds
+	ELSE 					
+		SET dbTimestamp = SUBSTRING(dbTimestamp FROM 1 FOR 26); -- The input value contains TIMESTAMP
+		WHILE LENGTH(dbTimestamp) < 26 DO
+			SET dbTimestamp = dbTimestamp|| '0';
+		END WHILE;
+	END IF;
+	
+	RETURN dbTimestamp;
+	
+END;
+
+CREATE PROCEDURE errSetPriorityMessage( IN inRef REFERENCE, IN outRef REFERENCE, IN excpId INTEGER, IN flowName CHAR )
+BEGIN
+		
+		DECLARE stat 		CHARACTER '';
+		
+		SET outRef = NULL;  -- Deleting the input message body that was already mapped to output.
+		
+		SET outRef.Properties = inRef.Properties ;
+		SET outRef.MQMD		  = inRef.MQMD ;
+		
+		CREATE LASTCHILD OF outRef AS outRef DOMAIN 'XMLNSC'; 
+		SET outRef.(XMLNSC.XmlDeclaration).(XMLNSC.Attribute)version = '1.0'; 
+		SET outRef.(XMLNSC.XmlDeclaration).(XMLNSC.Attribute)encoding = 'UTF-8';
+		SET outRef.(XMLNSC.XmlDeclaration).(XMLNSC.Attribute)standAlone = 'yes';
+		
+		CREATE LASTCHILD OF outRef AS outRef NAMESPACE commonNs NAME 'FinnairMsg';
+		
+		DECLARE REF_OUT_HEADER REFERENCE TO outRef;
+		CREATE LASTCHILD OF outRef AS REF_OUT_HEADER NAMESPACE commonNs NAME 'Header';	
+
+		CALL CreateFinnairHeader (REF_OUT_HEADER, inRef, flowName, stat);
+		
+		CREATE LASTCHILD OF outRef AS outRef NAMESPACE commonNs NAME 'SaveResult';
+		
+		CREATE LASTCHILD OF outRef NAMESPACE commonNs NAME 'isSuccess'          VALUE 'True';
+		CREATE LASTCHILD OF outRef NAMESPACE commonNs NAME 'recordId'           VALUE excpId;
+	
+END ;
+
+--------------------------------------------------------------------------------------
+-- Program History
+-- Ref    Fix Number      Module    		Name                Date    	Description
+-- 00.00                  										28/02/12	Initial Version
+-- 
+---------------------------------------------------------------------------------------
+-- Description:
+-- Used to fetch the replay rule from the replay table
+-- 	 
+---------------------------------------------------------------------------------------
+CREATE PROCEDURE errLookupMsgReplayRule( IN queueName CHAR, IN serviceType CHAR, IN errorCode CHAR, IN esbErrCode CHAR, INOUT envRef REFERENCE )
+BEGIN
+	
+		-- Declarations 
+		DECLARE DB_IN_PARAMS ROW;
+		DECLARE DB_OUT_PARAMS ROW;
+		DECLARE SQL_STATEMENT CHAR '';
+		DECLARE resultBranchName CHAR '';
+		DECLARE throwOnNoRowsFalse BOOLEAN FALSE;
+		DECLARE now TIMESTAMP CURRENT_TIMESTAMP;
+		DECLARE minutes INTERVAL;
+		
+		Set resultBranchName = 'OUTPUT';
+		
+		CREATE LASTCHILD OF DB_IN_PARAMS NAME 'QUEUE_NAME' 	 VALUE queueName;
+	    -- Request Type held on Failure message , use 'ANY' as a default
+		CREATE LASTCHILD OF DB_IN_PARAMS NAME 'REQUEST_TYPE' VALUE Coalesce(UPPER(serviceType),'ANY');
+
+		CREATE LASTCHILD OF DB_IN_PARAMS NAME 'ERROR_CODE_MATCH_FILTER' VALUE SUBSTRING(errorCode FROM 1 FOR 20);
+
+		SET SQL_STATEMENT    = 'Select REPLAY_RULE, REPLAY_DELAY, REPLAY_QUEUE, TIVOLI_ALERT
+								  From EAI.MESSAGE_REPLAY_RULE
+								 Where QUEUE_NAME   = ?
+								   And REQUEST_TYPE = ?
+								   And ERROR_CODE_MATCH_FILTER = ?';
+
+		CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, esbErrCode, DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+		-- If there are no rows returned for the above conditions, it's probably due to the error code not being in the table
+		-- Therefore, we need to change the error_code to a default value of 'ANY' and re-do the read
+		-- If you still don't get results, throw an exception
+		IF CARDINALITY(DB_OUT_PARAMS.OUTPUT.[]) = 0 Then
+			SET DB_IN_PARAMS.ERROR_CODE_MATCH_FILTER = 'ANY';
+
+			SET SQL_STATEMENT    = 'Select REPLAY_RULE, REPLAY_DELAY, REPLAY_QUEUE, TIVOLI_ALERT
+								      From EAI.MESSAGE_REPLAY_RULE
+								     Where QUEUE_NAME   = ?
+								       And REQUEST_TYPE = ?
+								       And ERROR_CODE_MATCH_FILTER = ?';
+
+			CALL cDatabaseRead(SQL_STATEMENT, throwOnNoRowsFalse, esbErrCode, DB_IN_PARAMS, DB_OUT_PARAMS, resultBranchName);
+
+			IF CARDINALITY(DB_OUT_PARAMS.OUTPUT.[]) = 0 THEN
+				SET envRef.errorCodeMatchFilter = 'No replay rule found';
+			    SET envRef.replayRule  		   = 'X';
+			    SET envRef.replayDelay 		   =  0;
+			    SET envRef.replayQueue 		   = COALESCE(TRIM(TRAILING ' ' FROM queueName), 'UNKNOWN');
+			    SET envRef.tivoliAlert		   = 'N';
+
+			ELSE
+				SET envRef.errorCodeMatchFilter = DB_IN_PARAMS.ERROR_CODE_MATCH_FILTER;
+			    SET envRef.replayRule  		   = DB_OUT_PARAMS.OUTPUT.REPLAY_RULE;
+			    SET envRef.replayDelay 		   = DB_OUT_PARAMS.OUTPUT.REPLAY_DELAY;
+			    SET envRef.replayQueue 		   = DB_OUT_PARAMS.OUTPUT.REPLAY_QUEUE;
+			    SET envRef.tivoliAlert		   = DB_OUT_PARAMS.OUTPUT.TIVOLI_ALERT;
+			END IF;
+		ELSE
+			SET envRef.errorCodeMatchFilter = DB_IN_PARAMS.ERROR_CODE_MATCH_FILTER;
+		    SET envRef.replayRule  		   = DB_OUT_PARAMS.OUTPUT.REPLAY_RULE;
+		    SET envRef.replayDelay 		   = DB_OUT_PARAMS.OUTPUT.REPLAY_DELAY;
+		    SET envRef.replayQueue 		   = DB_OUT_PARAMS.OUTPUT.REPLAY_QUEUE;
+		    SET envRef.tivoliAlert		   = DB_OUT_PARAMS.OUTPUT.TIVOLI_ALERT;
+		END IF;
+		
+		SET minutes = CAST((envRef.replayDelay) AS INTERVAL MINUTE);
+		SET envRef.autoReplayTimestamp = now + minutes;
+		
+		-- Determine value of 'status' which defaults to 0
+		IF envRef.replayRule = 'I' THEN
+			SET envRef.Status = 'I';
+		ELSEIF envRef.replayRule = 'M' AND envRef.tivoliAlert = 'Y' THEN
+			SET envRef.Status = 'T';	
+		ELSE
+			SET envRef.Status = '0';
+		END IF;
+
+END;

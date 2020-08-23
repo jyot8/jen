@@ -1,0 +1,18 @@
+
+
+CREATE COMPUTE MODULE SF_Broker_Logging_Set_WH_header
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot = InputRoot;
+		-- Transfer our input queue name to the warehouse in the Reply to Q field
+		SET OutputRoot.MQMD.ReplyToQ 
+			= InputRoot.MQMD.SourceQueue; 
+		-- We also send the destination queue name to the Warehouse (using the Reply to Queue Manager filed
+		-- but if this is warehousing the input message, the desination queue is recorded as the input queue name 
+		-- (so that if it is replayed, it goes back to the input queue)	
+		SET OutputRoot.MQMD.ReplyToQMgr 
+			= InputRoot.MQMD.SourceQueue; 	-- this is a warehouse copy of INPUT message so this queue name is the same
+
+		RETURN TRUE;
+	END;
+END MODULE;
