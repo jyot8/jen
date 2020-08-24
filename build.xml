@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<project name="project" default="run" basedir="." xmlns:ac="antlib:net.sf.antcontrib">
+	
+	<target name="run" description="Build Master Script">
+		
+		<!-- ToolKit Directory -->
+		<!-- Extract details from environment file -->
+		<!--<property file= "C:\IIB_Environment\IIB_set_Env" /> -->
+		<property name="toolkit.home" value="/opt/IBM/EAsmbl_image/iib-10.0.0.7/tools" />
+		<echo message="Toolkit at ${toolkit.home}" />
+		<!-- Workspace Directory -->
+		
+		<property name="workspaces.dir" value="/var/lib/jenkins/workspace/iib-test-job" />
+		<echo message="Workspace at ${workspaces.dir}" />
+		
+		<!-- Format Bar file name -->
+		<property name="bar.name" value="FUEL_ESLIP" />
+		<property name="version.num" value="V9"/>
+		<!-- <buildnumber file="build.num"/> -->
+		<tstamp>
+			<format property="DATE" pattern="yyyy-MM-dd" />
+		</tstamp>
+
+        <antcall target="mqsicreatebar.buildbar" />
+      
+</target>
+
+
+
+	         <!--   Target to build the broker archive using mqsicreatebar  -->
+	
+	<target name="mqsicreatebar.buildbar" unless="FUEL_ESLIP" >
+		
+		<echo message="Building Broker Archive file: FUEL_ESLIP" />
+		<exec executable="${toolkit.home}/mqsicreatebar" failifexecutionfails="off" >
+			<arg value="-data" />
+			<arg value="${workspaces.dir}" />
+			<arg value="-b" />
+			<arg value="/opt/IBM/FuelESlip/FuelESlip.bar" />
+			<arg value="-cleanBuild" />
+			<arg value="-a" />
+			<arg value= "FUEL_ESLIP" />
+			<arg value="-deployAsSource" />
+			<arg value="-skipWSErrorCheck"/>
+		</exec>
+		<echo message="Bar built successfully ---" />
+	<!--	<antcall target="check.bar.creation"/> -->
+	  </target>
+	  
+	
+</project>
