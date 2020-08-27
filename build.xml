@@ -4,19 +4,17 @@
 	<target name="run" description="Build Master Script">
 		
 		<!-- ToolKit Directory -->
-		<!-- Extract details from environment file -->
-		<!--<property file= "C:\IIB_Environment\IIB_set_Env" /> -->
 		<property name="toolkit.home" value="/opt/IBM/EAsmbl_image/iib-10.0.0.7/tools" />
 		<echo message="Toolkit at ${toolkit.home}" />
-		<!-- Workspace Directory -->
 		
+		<!-- Workspace Directory -->
 		<property name="workspaces.dir" value="/var/lib/jenkins/workspace/iib-test-job" />
 		<echo message="Workspace at ${workspaces.dir}" />
 		
 		<!-- Format Bar file name -->
 		<property name="bar.name" value="FUEL_ESLIP" />
 		<property name="version.num" value="V9"/>
-		<!-- <buildnumber file="build.num"/> -->
+		
 		<tstamp>
 			<format property="DATE" pattern="yyyy-MM-dd" />
 		</tstamp>
@@ -44,7 +42,7 @@
 			<arg value="-skipWSErrorCheck"/>
 		</exec>
 		<echo message="Bar built successfully ---" />
-	<!--	<antcall target="check.bar.creation"/> -->
+	
 	  </target>
 	  
 	
