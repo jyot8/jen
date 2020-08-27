@@ -1,0 +1,70 @@
+
+
+CREATE COMPUTE MODULE MAPFLOW_AVIOBOOK_ESLIP_NOTIFICATION_Final_Notification_Request
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyMessageHeaders();
+		
+		DECLARE acown CHAR Environment.data.acown;
+		IF acown IN ('AY', 'N7')THEN
+			DECLARE inputref REFERENCE TO InputRoot.XMLNSC.msg.flightLeg.crew;
+			DECLARE inputmsgref REFERENCE TO inputref.crewMember;
+			/* Final Notification Response Map */
+			CREATE FIELD OutputRoot.XMLNSC.notification;
+			DECLARE refOut REFERENCE TO OutputRoot.XMLNSC.notification;
+			
+			SET refOut.subject 	= Environment.data.notifSubject;
+			SET refOut.body 	= Environment.data.notifBody;
+			SET refOut.mandatory	= 'false';
+			SET refOut.startDate	= CAST(CURRENT_DATE AS CHAR FORMAT 'yyyy-MM-dd')||'T00:00:00Z';
+			SET refOut.expirationDate = Environment.data.TA||'Z';
+			
+			CREATE LASTCHILD OF refOut NAME 'qualifications';
+			
+			/* Set User List in Final Output where type is C */
+			DECLARE i INTEGER 1;
+			CREATE LASTCHILD OF refOut NAME 'users';
+			DECLARE refUsers REFERENCE TO refOut.users;
+			WHILE LASTMOVE(inputmsgref)DO
+				IF(inputmsgref.crewType = 'C') THEN
+					DECLARE updatedEmpNumberChar CHARACTER inputmsgref.emplyeeNumber;
+					CALL TrimmedEmpNumber(inputmsgref.emplyeeNumber,updatedEmpNumberChar);
+					SET refUsers.user[i].login = updatedEmpNumberChar;
+					SET i = i+1;
+			    END IF;
+				MOVE inputmsgref NEXTSIBLING REPEAT TYPE NAME;
+			END WHILE;
+			CREATE LASTCHILD OF refOut NAME 'aircraft';
+			
+			RETURN TRUE;
+		END IF;
+		
+		DELETE FIELD Environment.data;
+		
+		--Discard if acown is not AY or N7
+		RETURN FALSE;
+	END;
+	
+	/* Transforming Employee Number with padchar */
+	CREATE PROCEDURE TrimmedEmpNumber ( IN empNumber CHARACTER, OUT updatedEmpNumberChar CHARACTER )
+	BEGIN
+		DECLARE inNumber INTEGER CAST(empNumber AS INTEGER);
+		DECLARE COUNTER INTEGER LENGTH(empNumber);
+        IF (COUNTER > 5) THEN
+        	SET updatedEmpNumberChar = 'AY'||SUBSTRING(empNumber FROM 1 FOR 5);
+        ELSE  
+        	SET updatedEmpNumberChar = 'AY'||CAST( inNumber AS CHARACTER FORMAT '00000');
+        END IF;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+END MODULE;

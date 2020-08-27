@@ -1,0 +1,16 @@
+
+
+CREATE COMPUTE MODULE MAPFLOW_AVIOBOOK_ESLIP_NOTIFICATION_Fault_Response
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		SET OutputRoot = InputRoot;
+        SET OutputRoot.XMLNSC.RequestMessage = Environment.data.CMSReq;
+        SET OutputRoot.HTTPResponseHeader = NULL;
+        
+        DELETE FIELD Environment.data;
+        
+		RETURN TRUE;
+	END;
+
+END MODULE;

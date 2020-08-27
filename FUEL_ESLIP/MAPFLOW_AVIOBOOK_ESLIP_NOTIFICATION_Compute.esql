@@ -1,0 +1,17 @@
+
+
+CREATE COMPUTE MODULE MAPFLOW_AVIOBOOK_ESLIP_NOTIFICATION_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE Hours INTEGER;
+		--SET Hours = Environment.Routing[Environment.LoggingIndex].APP_SPECIFIC1;
+		SET Hours = 120;
+
+		SET OutputRoot.MQMD.Expiry = ( Hours * 60 * 60 * 10);
+		SET OutputRoot.XMLNSC = InputRoot.XMLNSC;
+		
+		DELETE FIELD Environment.data;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
