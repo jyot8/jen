@@ -4,11 +4,11 @@
 	<target name="run" description="Build Master Script">
 		
 		<!-- ToolKit Directory -->
-		<property name="toolkit.home" value="/opt/IBM/EAsmbl_image/iib-10.0.0.7/tools" />
+		<property name="toolkit.home" value="C:\\Program Files (x86)\\IBM\\IntegrationToolkit90" />
 		<echo message="Toolkit at ${toolkit.home}" />
 		
 		<!-- Workspace Directory -->
-		<property name="workspaces.dir" value="/var/lib/jenkins/workspace/iib-test-job" />
+		<property name="workspaces.dir" value="C:\\ProgramData\\Jenkins\\workspace\\jen1" />
 		<echo message="Workspace at ${workspaces.dir}" />
 		
 		<!-- Format Bar file name -->
