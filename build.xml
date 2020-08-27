@@ -12,7 +12,7 @@
 		<echo message="Workspace at ${workspaces.dir}" />
 		
 		<!-- Format Bar file name -->
-		<property name="bar.name" value="FUEL_ESLIP" />
+		<property name="bar.name" value="DEMO_CICD" />
 		<property name="version.num" value="V9"/>
 		
 		<tstamp>
@@ -27,17 +27,17 @@
 
 	         <!--   Target to build the broker archive using mqsicreatebar  -->
 	
-	<target name="mqsicreatebar.buildbar" unless="FUEL_ESLIP" >
+	<target name="mqsicreatebar.buildbar" unless="DEMO_CICD" >
 		
-		<echo message="Building Broker Archive file: FUEL_ESLIP" />
-		<exec executable="${toolkit.home}/mqsicreatebar" failifexecutionfails="off" >
+		<echo message="Building Broker Archive file: DEMO_CICD" />
+		<exec executable="${toolkit.home}\\mqsicreatebar.exe" failifexecutionfails="off" >
 			<arg value="-data" />
 			<arg value="${workspaces.dir}" />
 			<arg value="-b" />
-			<arg value="/opt/IBM/FuelESlip/FuelESlip.bar" />
+			<arg value="C:\\ant\\testFile.bar" />
 			<arg value="-cleanBuild" />
 			<arg value="-a" />
-			<arg value= "FUEL_ESLIP" />
+			<arg value= "DEMO_CICD" />
 			<arg value="-deployAsSource" />
 			<arg value="-skipWSErrorCheck"/>
 		</exec>
